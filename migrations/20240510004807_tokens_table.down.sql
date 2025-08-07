@@ -1,0 +1,10 @@
+BEGIN
+;
+
+DROP INDEX IF EXISTS "tokens_id_index";
+
+DROP TABLE IF EXISTS "tokens";
+
+DROP TABLE IF EXISTS "tokens" CASCADE;
+
+COMMIT;

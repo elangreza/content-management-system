@@ -1,0 +1,60 @@
+version: "3.2"
+services:
+  database:
+    image: postgres:alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - ${POSTGRES_PORT}:${POSTGRES_PORT}
+    volumes:
+      - database-data:/var/lib/postgresql/data/
+    networks:
+      - cms
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      retries: 5
+      start_period: 30s
+      timeout: 10s
+  # migrate:
+  #   image: migrate/migrate
+  #   env_file:
+  #     - .env
+  #   networks:
+  #     - cms
+  #   volumes:
+  #     - ./migrations:/migrations
+  #   depends_on:
+  #     database:
+  #       condition: service_healthy
+  #       restart: true
+  #   command:
+  #     [
+  #       "-path",
+  #       "./migrations",
+  #       "-database",
+  #       "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@database:${POSTGRES_PORT}/${POSTGRES_DB}?sslmode=${POSTGRES_SSL}",
+  #       "up",
+  #     ]
+  # app:
+  #   networks:
+  #     - cms
+  #   ports:
+  #     - "8080:8080"
+  #   build: .
+  #   container_name: app
+  #   env_file:
+  #     - .env
+  #   depends_on:
+  #     database:
+  #       condition: service_healthy
+  #       restart: true
+  #     redis:
+  #       condition: service_started
+networks:
+  cms:
+    driver: bridge
+volumes:
+  database-data:
