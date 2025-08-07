@@ -69,3 +69,33 @@ func (ar *ArticleRepo) CreateArticle(ctx context.Context, article entity.Article
 
 	return articleID, nil
 }
+
+const (
+	resetArticlePublishedAndDraftedToNullQuery = `UPDATE articles
+		SET published_version_id=NULL, drafted_version_id=NULL WHERE id=$1;`
+	deleteArticleVersionsByArticleIdQuery = `DELETE FROM article_versions
+		WHERE article_id=$1;`
+	deleteArticleByArticleIdQuery = `DELETE FROM articles
+		WHERE id=$1;`
+)
+
+// DeleteArticle implements ArticleRepo.
+func (ar *ArticleRepo) DeleteArticle(ctx context.Context, articleID int64) error {
+	err := runInTx(ctx, ar.db, func(tx *sql.Tx) error {
+		if _, err := tx.ExecContext(ctx, resetArticlePublishedAndDraftedToNullQuery, articleID); err != nil {
+			return err
+		}
+
+		if _, err := tx.ExecContext(ctx, deleteArticleVersionsByArticleIdQuery, articleID); err != nil {
+			return err
+		}
+
+		if _, err := tx.ExecContext(ctx, deleteArticleByArticleIdQuery, articleID); err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	return err
+}

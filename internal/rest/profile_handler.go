@@ -18,13 +18,13 @@ type (
 	}
 )
 
-func NewProfileRouter(ar chi.Router, profileService ProfileService) {
+func NewProfileRouter(router chi.Router, profileService ProfileService) {
 
 	profileHandler := ProfileHandler{
 		svc: profileService,
 	}
 
-	ar.Get("/profile", profileHandler.ProfileUserHandler)
+	router.Get("/profile", profileHandler.ProfileUserHandler)
 }
 
 func (ah *ProfileHandler) ProfileUserHandler(w http.ResponseWriter, r *http.Request) {

@@ -3,7 +3,9 @@ package rest
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
+	"strconv"
 
 	errs "github.com/elangreza/content-management-system/internal/error"
 	"github.com/elangreza/content-management-system/internal/params"
@@ -13,6 +15,7 @@ import (
 type (
 	ArticleService interface {
 		CreateArticle(ctx context.Context, req params.CreateArticleRequest) (*params.CreateArticleResponse, error)
+		DeleteArticle(ctx context.Context, articleID int64) error
 	}
 
 	ArticleHandler struct {
@@ -20,16 +23,17 @@ type (
 	}
 )
 
-func NewArticleRouter(ar chi.Router, ArticleService ArticleService) {
+func NewArticleRouter(router chi.Router, ArticleService ArticleService) {
 
 	ArticleHandler := ArticleHandler{
 		svc: ArticleService,
 	}
 
-	ar.Post("/article", ArticleHandler.ArticleUserHandler)
+	router.Post("/articles", ArticleHandler.CreateArticleHandler)
+	router.Delete("/articles/{articleID}", ArticleHandler.DeleteArticleHandler)
 }
 
-func (ah *ArticleHandler) ArticleUserHandler(w http.ResponseWriter, r *http.Request) {
+func (ah *ArticleHandler) CreateArticleHandler(w http.ResponseWriter, r *http.Request) {
 
 	body := params.CreateArticleRequest{}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
@@ -50,4 +54,24 @@ func (ah *ArticleHandler) ArticleUserHandler(w http.ResponseWriter, r *http.Requ
 	}
 
 	sendSuccessResponse(w, http.StatusOK, Article)
+}
+
+func (ah *ArticleHandler) DeleteArticleHandler(w http.ResponseWriter, r *http.Request) {
+
+	articleIDParam := chi.URLParam(r, "articleID")
+
+	articleID, err := strconv.Atoi(articleIDParam)
+	if err != nil {
+		err = errors.New("error when parsing articleID")
+		sendErrorResponse(w, http.StatusBadRequest, err)
+		return
+	}
+
+	err = ah.svc.DeleteArticle(r.Context(), int64(articleID))
+	if err != nil {
+		sendErrorResponse(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	sendSuccessResponse(w, http.StatusOK, "ok")
 }
