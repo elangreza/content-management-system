@@ -1,7 +1,6 @@
 package entity
 
 import (
-	"database/sql"
 	"errors"
 	"time"
 
@@ -18,9 +17,6 @@ type Token struct {
 	IssuedAt  time.Time
 	ExpiredAt time.Time
 	Duration  string
-
-	CreatedAt time.Time
-	UpdatedAt sql.NullTime
 }
 
 func NewToken(signingKey []byte, userID uuid.UUID, tokenType string) (*Token, error) {

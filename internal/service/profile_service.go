@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"errors"
-	"fmt"
 	"time"
 
 	"github.com/elangreza/content-management-system/internal/constanta"
@@ -22,9 +21,6 @@ func NewProfileService(userRepo userRepo) *ProfileService {
 }
 
 func (ps *ProfileService) GetUserProfile(ctx context.Context) (*params.UserProfileResponse, error) {
-
-	fmt.Println(ctx.Value(constanta.LocalUserID))
-
 	localUserID, ok := ctx.Value(constanta.LocalUserID).(string)
 	if !ok {
 		return nil, errors.New("error when handle ctx value")

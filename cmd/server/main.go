@@ -20,11 +20,6 @@ import (
 	_ "github.com/lib/pq"
 )
 
-// @title			Lion Superindo product API
-// @version		1.0
-// @description	API documentation for Lion Superindo test
-// @host			localhost:8080
-// @BasePath		/
 func main() {
 	cfg, err := config.LoadConfig()
 	errChecker(err)
@@ -40,19 +35,22 @@ func main() {
 	// repositories
 	ur := postgresql.NewUserRepo(dn)
 	tr := postgresql.NewTokenRepo(dn)
+	ar := postgresql.NewArticleRepo(dn)
 
 	// services
-	as := service.NewAuthService(ur, tr)
-	ps := service.NewProfileService(ur)
+	authService := service.NewAuthService(ur, tr)
+	profileService := service.NewProfileService(ur)
+	articleService := service.NewArticleService(ar)
 
 	// middleware
-	am := rest.NewAuthMiddleware(as)
+	am := rest.NewAuthMiddleware(authService)
 
-	rest.NewAuthRouter(c, as)
+	rest.NewAuthRouter(c, authService)
 
 	c.Group(func(r chi.Router) {
 		r.Use(am.MustAuthMiddleware())
-		rest.NewProfileRouter(r, ps)
+		rest.NewProfileRouter(r, profileService)
+		rest.NewArticleRouter(r, articleService)
 	})
 
 	srv := &http.Server{

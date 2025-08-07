@@ -52,9 +52,7 @@ const (
 		token_type, 
 		issued_at, 
 		expired_at, 
-		duration, 
-		created_at, 
-		updated_at
+		duration
 	FROM tokens
 	WHERE id = $1
 	;`
@@ -71,8 +69,6 @@ func (u *TokenRepo) GetTokenByTokenID(ctx context.Context, tokenID uuid.UUID) (*
 		&token.IssuedAt,
 		&token.ExpiredAt,
 		&token.Duration,
-		&token.CreatedAt,
-		&token.UpdatedAt,
 	)
 	if err != nil {
 		return nil, err
@@ -89,11 +85,9 @@ const (
 		token_type, 
 		issued_at, 
 		expired_at, 
-		duration, 
-		created_at, 
-		updated_at
+		duration
 	FROM tokens
-	WHERE user_id = $1
+	WHERE user_id = $1 AND expired_at > NOW()
 	;`
 )
 
@@ -108,8 +102,6 @@ func (u *TokenRepo) GetTokenByUserID(ctx context.Context, userID uuid.UUID) (*en
 		&token.IssuedAt,
 		&token.ExpiredAt,
 		&token.Duration,
-		&token.CreatedAt,
-		&token.UpdatedAt,
 	)
 	if err != nil {
 		return nil, err
