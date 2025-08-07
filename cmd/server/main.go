@@ -16,6 +16,7 @@ import (
 	"github.com/elangreza/content-management-system/internal/postgresql"
 	"github.com/elangreza/content-management-system/internal/rest"
 	"github.com/elangreza/content-management-system/internal/service"
+	"github.com/go-chi/chi/v5"
 	_ "github.com/lib/pq"
 )
 
@@ -34,10 +35,25 @@ func main() {
 	// deps, err := InitializeProductHandler(cfg)
 	// errChecker(err)
 
+	c := chi.NewRouter()
+
+	// repositories
 	ur := postgresql.NewUserRepo(dn)
 	tr := postgresql.NewTokenRepo(dn)
+
+	// services
 	as := service.NewAuthService(ur, tr)
-	c := rest.NewAuthRouter(as)
+	ps := service.NewProfileService(ur)
+
+	// middleware
+	am := rest.NewAuthMiddleware(as)
+
+	rest.NewAuthRouter(c, as)
+
+	c.Group(func(r chi.Router) {
+		r.Use(am.MustAuthMiddleware())
+		rest.NewProfileRouter(r, ps)
+	})
 
 	srv := &http.Server{
 		Addr:           fmt.Sprintf(":%s", cfg.HTTP_PORT),

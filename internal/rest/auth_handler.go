@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/elangreza/content-management-system/internal/entity"
 	errs "github.com/elangreza/content-management-system/internal/error"
 	"github.com/elangreza/content-management-system/internal/params"
 	"github.com/go-chi/chi/v5"
@@ -15,7 +14,7 @@ type (
 	AutService interface {
 		RegisterUser(ctx context.Context, req params.RegisterUserRequest) error
 		LoginUser(ctx context.Context, req params.LoginUserRequest) (string, error)
-		ProcessToken(ctx context.Context, reqToken string) (*entity.User, error)
+		// ProcessToken(ctx context.Context, reqToken string) (*entity.User, error)
 	}
 
 	AuthHandler struct {
@@ -23,18 +22,16 @@ type (
 	}
 )
 
-func NewAuthRouter(authService AutService) chi.Router {
+func NewAuthRouter(ar chi.Router, authService AutService) {
 
 	authHandler := AuthHandler{
 		svc: authService,
 	}
 
-	ar := chi.NewRouter()
 	ar.Route("/auth", func(r chi.Router) {
 		r.Post("/register", authHandler.RegisterUser)
 		r.Post("/login", authHandler.LoginUser)
 	})
-	return ar
 }
 
 func (ah *AuthHandler) RegisterUser(w http.ResponseWriter, r *http.Request) {

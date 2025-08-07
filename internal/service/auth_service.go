@@ -101,21 +101,21 @@ func (as *AuthService) LoginUser(ctx context.Context, req params.LoginUserReques
 	return token.Token, nil
 }
 
-func (as *AuthService) ProcessToken(ctx context.Context, reqToken string) (*entity.User, error) {
+func (as *AuthService) ProcessToken(ctx context.Context, reqToken string) (uuid.UUID, error) {
 	token := &entity.Token{Token: reqToken}
 
 	tokenID, err := token.IsTokenValid([]byte(constanta.AuthenticationSigningKey))
 	if err != nil {
-		return nil, err
+		return uuid.UUID{}, err
 	}
 
 	token, err = as.TokenRepo.GetTokenByTokenID(ctx, tokenID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, errs.NotFound{Name: "token"}
+			return uuid.UUID{}, errs.NotFound{Name: "token"}
 		}
-		return nil, err
+		return uuid.UUID{}, err
 	}
 
-	return as.UserRepo.GetUserByID(ctx, token.UserID)
+	return token.UserID, nil
 }

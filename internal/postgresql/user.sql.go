@@ -91,7 +91,7 @@ const (
 	FROM 
 		users
 	WHERE 
-		id=$2;`
+		id=$1;`
 )
 
 // GetUserByID implements userRepo.
