@@ -6,6 +6,7 @@ import (
 
 	"github.com/elangreza/content-management-system/internal/constanta"
 	"github.com/elangreza/content-management-system/internal/entity"
+	errs "github.com/elangreza/content-management-system/internal/error"
 	"github.com/elangreza/content-management-system/internal/params"
 	"github.com/google/uuid"
 )
@@ -14,6 +15,8 @@ type (
 	articleRepo interface {
 		CreateArticle(ctx context.Context, article entity.Article) (int, error)
 		DeleteArticle(ctx context.Context, articleID int64) error
+		GetArticleVersionWithIDAndArticleID(ctx context.Context, articleID int64, articleVersionID int64) (*entity.ArticleVersion, error)
+		UpdateArticleVersion(ctx context.Context, articleID int64, articleVersionID int64, status constanta.ArticleVersionStatus) error
 	}
 
 	ArticleService struct {
@@ -27,6 +30,7 @@ func NewArticleService(articleRepo articleRepo) *ArticleService {
 	}
 }
 
+// => POST /articles
 func (as *ArticleService) CreateArticle(ctx context.Context, req params.CreateArticleRequest) (*params.CreateArticleResponse, error) {
 
 	localUserID, ok := ctx.Value(constanta.LocalUserID).(string)
@@ -50,8 +54,27 @@ func (as *ArticleService) CreateArticle(ctx context.Context, req params.CreateAr
 	}, nil
 }
 
+// => DELETE /articles/{id}
 func (as *ArticleService) DeleteArticle(ctx context.Context, articleID int64) error {
 	return as.ArticleRepo.DeleteArticle(ctx, articleID)
+}
+
+// => PUT /articles/{id}/versions/{id}/status
+func (as *ArticleService) UpdateStatusArticle(ctx context.Context, articleID, articleVersionID int64, status constanta.ArticleVersionStatus) error {
+	articleVersion, err := as.ArticleRepo.GetArticleVersionWithIDAndArticleID(ctx, articleID, articleVersionID)
+	if err != nil {
+		return err
+	}
+
+	if status == articleVersion.Status {
+		return errs.ValidationError{Message: "status cannot be same as current status"}
+	}
+
+	if status < articleVersion.Status {
+		return errs.ValidationError{Message: "status cannot be downgraded"}
+	}
+
+	return as.ArticleRepo.UpdateArticleVersion(ctx, articleID, articleVersionID, status)
 }
 
 // DONE Pembuatan Artikel Baru
@@ -62,9 +85,9 @@ func (as *ArticleService) DeleteArticle(ctx context.Context, articleID int64) er
 // => POST /articles/{id}
 // TODO Pembuatan Versi Artikel Baru
 // => POST /articles/{id}/versions/{id}
-// Penghapusan Artikel
+// DONE Penghapusan Artikel
 // => DELETE /articles/{id}
-// TODO Perubahan Status Versi Artikel
+// DONE Perubahan Status Versi Artikel
 // => PUT /articles/{id}/versions/{id}/status
 // TODO Pengambilan Daftar Versi Artikel
 // => GET /articles/{id}/versions

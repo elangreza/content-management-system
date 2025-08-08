@@ -3,15 +3,8 @@ package entity
 import (
 	"time"
 
+	"github.com/elangreza/content-management-system/internal/constanta"
 	"github.com/google/uuid"
-)
-
-type ArticleVersionStatus int8
-
-const (
-	Pending ArticleVersionStatus = iota
-	Published
-	Archived
 )
 
 type (
@@ -33,12 +26,12 @@ type (
 		Title     string
 		Body      string
 		Version   int64
-		Status    ArticleVersionStatus
+		Status    constanta.ArticleVersionStatus
 
 		CreatedBy uuid.UUID
 		CreatedAt time.Time
 		UpdatedBy uuid.UUID
-		UpdatedAt time.Time
+		UpdatedAt *time.Time
 	}
 )
 
@@ -49,7 +42,7 @@ func NewArticle(title, body string, createdBy uuid.UUID) *Article {
 			{
 				Title:     title,
 				Body:      body,
-				Status:    Pending,
+				Status:    constanta.Pending,
 				Version:   1,
 				CreatedBy: createdBy,
 			},

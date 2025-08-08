@@ -3,9 +3,11 @@ package postgresql
 import (
 	"context"
 	"database/sql"
-	"fmt"
+	"errors"
 
+	"github.com/elangreza/content-management-system/internal/constanta"
 	"github.com/elangreza/content-management-system/internal/entity"
+	"github.com/google/uuid"
 )
 
 type (
@@ -47,7 +49,6 @@ func (ar *ArticleRepo) CreateArticle(ctx context.Context, article entity.Article
 				articleVersion.Status,
 				articleVersion.CreatedBy,
 			).Scan(&versionID); err != nil {
-				fmt.Println("2")
 				return err
 			}
 		}
@@ -57,7 +58,6 @@ func (ar *ArticleRepo) CreateArticle(ctx context.Context, article entity.Article
 			versionID,
 			articleID,
 		); err != nil {
-			fmt.Println("3")
 			return err
 		}
 
@@ -91,6 +91,93 @@ func (ar *ArticleRepo) DeleteArticle(ctx context.Context, articleID int64) error
 		}
 
 		if _, err := tx.ExecContext(ctx, deleteArticleByArticleIdQuery, articleID); err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	return err
+}
+
+const (
+	getArticleVersionWithIDAndArticleIDQuery = `SELECT id, title, body, "version", status, created_by, created_at, updated_by, updated_at
+		FROM article_versions WHERE article_id=$1 AND id=$2;`
+)
+
+func (ar *ArticleRepo) GetArticleVersionWithIDAndArticleID(ctx context.Context, articleID int64, articleVersionID int64) (*entity.ArticleVersion, error) {
+
+	articleVersion := &entity.ArticleVersion{}
+	updatedAt := sql.NullTime{}
+	err := ar.db.QueryRowContext(ctx, getArticleVersionWithIDAndArticleIDQuery, articleID, articleVersionID).Scan(
+		&articleVersion.ID,
+		&articleVersion.Title,
+		&articleVersion.Body,
+		&articleVersion.Version,
+		&articleVersion.Status,
+		&articleVersion.CreatedBy,
+		&articleVersion.CreatedAt,
+		&articleVersion.UpdatedBy,
+		&updatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	if updatedAt.Valid {
+		articleVersion.UpdatedAt = &updatedAt.Time
+	}
+
+	return articleVersion, nil
+}
+
+const (
+	updateArticleVersionWithStatusPublishedIntoArchivedQuery = `UPDATE article_versions
+		SET status=$1, updated_by=$2 WHERE article_id=$3;`
+	updateArticleVersionQuery = `UPDATE article_versions
+		SET status=$1, updated_by=$2 WHERE article_id=$3 AND id=$4;`
+	updateArticlePublishedIdQuery = `UPDATE articles
+		SET published_version_id=$1, updated_by=$2 WHERE id=$3;`
+)
+
+func (ar *ArticleRepo) UpdateArticleVersion(ctx context.Context, articleID, articleVersionID int64, status constanta.ArticleVersionStatus) error {
+
+	localUserID, ok := ctx.Value(constanta.LocalUserID).(string)
+	if !ok {
+		return errors.New("error when handle ctx value")
+	}
+
+	userID, err := uuid.Parse(localUserID)
+	if err != nil {
+		return errors.New("error when parsing userID")
+	}
+
+	err = runInTx(ctx, ar.db, func(tx *sql.Tx) error {
+		// update article version published into archived with article id
+		if status == constanta.Published {
+			if _, err := tx.ExecContext(ctx, updateArticleVersionWithStatusPublishedIntoArchivedQuery,
+				constanta.Archived,
+				userID,
+				articleID,
+			); err != nil {
+				return err
+			}
+		}
+
+		if _, err := tx.ExecContext(ctx, updateArticleVersionQuery,
+			status,
+			userID,
+			articleID,
+			articleVersionID,
+		); err != nil {
+			return err
+		}
+
+		if _, err := tx.ExecContext(ctx, updateArticlePublishedIdQuery,
+			articleVersionID,
+			userID,
+			articleID,
+		); err != nil {
 			return err
 		}
 
