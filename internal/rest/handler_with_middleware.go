@@ -17,6 +17,10 @@ func NewHandlerWithMiddleware(
 		svc: authService,
 	}
 
+	articleMiddleware := ArticleMiddleware{
+		svc: authService,
+	}
+
 	profileHandler := ProfileHandler{
 		svc: profileService,
 	}
@@ -47,5 +51,11 @@ func NewHandlerWithMiddleware(
 
 	})
 
-	publicRoute.Get("/articles/{articleID}", articleHandler.GetArticleDetailHandler)
+	publicRoute.Group(func(r chi.Router) {
+		r.Use(authMiddleware.OptionalAuthMiddleware())
+		r.Use(articleMiddleware.CanSeeDraftOrArchivedArticle())
+		r.Get("/articles/{articleID}", articleHandler.GetArticleDetailHandler)
+		r.Get("/articles/{articleID}/versions", articleHandler.GetArticleVersionsHandler)
+		r.Get("/articles/{articleID}/versions/{articleVersionID}", articleHandler.GetArticleVersionWithIDAndArticleID)
+	})
 }

@@ -67,7 +67,7 @@ func (as *AuthService) LoginUser(ctx context.Context, req params.LoginUserReques
 	user, err := as.UserRepo.GetUserByEmail(ctx, req.Email)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return "", errs.NotFound{Name: fmt.Sprintf("email %s", req.Email)}
+			return "", errs.NotFound{Message: fmt.Sprintf("email %s", req.Email)}
 		}
 		return "", err
 	}
@@ -113,7 +113,7 @@ func (as *AuthService) ProcessToken(ctx context.Context, reqToken string) (uuid.
 	token, err = as.TokenRepo.GetTokenByTokenID(ctx, tokenID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return uuid.UUID{}, errs.NotFound{Name: "token"}
+			return uuid.UUID{}, errs.NotFound{Message: "token"}
 		}
 		return uuid.UUID{}, err
 	}
@@ -125,7 +125,7 @@ func (as *AuthService) GetUserRoleByUserID(ctx context.Context, id uuid.UUID) (*
 	userRole, err := as.UserRepo.GetUserRoleByUserID(ctx, id)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, errs.NotFound{Name: "user"}
+			return nil, errs.NotFound{Message: "user"}
 		}
 		return nil, err
 	}

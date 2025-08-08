@@ -19,7 +19,7 @@ type (
 		UpdateArticleVersion(ctx context.Context, articleID int64, articleVersionID int64, status constanta.ArticleVersionStatus, updatedBy uuid.UUID) error
 		CreateArticleVersion(ctx context.Context, articleVersion entity.ArticleVersion) (int64, error)
 		GetArticleWithID(ctx context.Context, articleID int64) (*entity.Article, error)
-		GetArticleVersionWithID(ctx context.Context, ID int64) (*entity.ArticleVersion, error)
+		GetArticleVersionsWithArticleIDAndStatuses(ctx context.Context, ArticleID int64, status ...constanta.ArticleVersionStatus) ([]entity.ArticleVersion, error)
 	}
 
 	ArticleService struct {
@@ -123,12 +123,8 @@ func (as *ArticleService) CreateArticleVersion(ctx context.Context, articleID in
 // => POST /articles/{id}/versions/{id}
 // Pengambilan Detail Artikel Terbaru
 // => POST /articles/{id}
-
-// TODO Pengambilan Daftar Artikel
-// => GET /articles
-// func (as *ArticleService) GetArticles(ctx context.Context, param params.GetParamRequest) (*entity.Article, error) {
-// 	return nil, nil
-// }
+// Pengambilan Detail Versi Artikel Tertentu
+// => GET /articles/{id}/versions/{id}
 
 // => POST /articles/{id}
 func (as *ArticleService) GetArticleWithID(ctx context.Context, articleID int64) (*params.GetArticleDetailResponse, error) {
@@ -137,8 +133,15 @@ func (as *ArticleService) GetArticleWithID(ctx context.Context, articleID int64)
 		return nil, err
 	}
 
+	userCanReadDraftedAndArchivedArticle, ok := ctx.Value(constanta.LocalUserCanReadDraftedAndArchivedArticle).(bool)
+	if !ok {
+		return nil, errors.New("error when parsing user permission")
+	}
+
+	// TODO check permission ReadDraftedOrArchivedArticle
+
 	var articleVersionResponse *params.ArticleVersionResponse
-	if article.DraftedVersionID != 0 {
+	if article.DraftedVersionID != 0 && userCanReadDraftedAndArchivedArticle {
 		draftedVersion, err := as.ArticleRepo.GetArticleVersionWithIDAndArticleID(ctx, article.ID, article.DraftedVersionID)
 		if err != nil {
 			return nil, err
@@ -177,6 +180,14 @@ func (as *ArticleService) GetArticleWithID(ctx context.Context, articleID int64)
 		}
 	}
 
+	if articleVersionResponse == nil && publishedVersionResponse == nil {
+		if !userCanReadDraftedAndArchivedArticle {
+			return nil, errs.ValidationError{Message: "unauthenticated user cannot access this endpoint with status Drafted or Archived"}
+		}
+
+		return nil, errs.ValidationError{Message: "this article has no published or drafted version"}
+	}
+
 	return &params.GetArticleDetailResponse{
 		ID:               article.ID,
 		DraftedVersion:   articleVersionResponse,
@@ -188,7 +199,72 @@ func (as *ArticleService) GetArticleWithID(ctx context.Context, articleID int64)
 	}, nil
 }
 
+// => GET /articles/{id}/versions/{id}
+func (as *ArticleService) GetArticleVersionWithIDAndArticleID(ctx context.Context, articleID int64, articleVersionID int64) (*params.ArticleVersionResponse, error) {
+	articleVersion, err := as.ArticleRepo.GetArticleVersionWithIDAndArticleID(ctx, articleID, articleVersionID)
+	if err != nil {
+		return nil, err
+	}
+
+	userCanReadDraftedAndArchivedArticle, ok := ctx.Value(constanta.LocalUserCanReadDraftedAndArchivedArticle).(bool)
+	if !ok {
+		return nil, errors.New("error when parsing user permission")
+	}
+
+	if !userCanReadDraftedAndArchivedArticle && (articleVersion.Status == constanta.Draft || articleVersion.Status == constanta.Archived) {
+		return nil, errs.ValidationError{Message: "unauthenticated user cannot access this endpoint with status Drafted or Archived"}
+	}
+
+	return &params.ArticleVersionResponse{
+		VersionID: articleVersion.ID,
+		Title:     articleVersion.Title,
+		Body:      articleVersion.Body,
+		Version:   articleVersion.Version,
+		Status:    int8(articleVersion.Status),
+		CreatedBy: articleVersion.CreatedBy,
+		CreatedAt: articleVersion.CreatedAt,
+		UpdatedBy: articleVersion.UpdatedBy,
+		UpdatedAt: articleVersion.UpdatedAt,
+	}, nil
+}
+
 // TODO Pengambilan Daftar Versi Artikel
 // => GET /articles/{id}/versions
-// TODO Pengambilan Detail Versi Artikel Tertentu
-// => GET /articles/{id}/versions/{id}
+func (as *ArticleService) GetArticleVersions(ctx context.Context, articleID int64) ([]params.ArticleVersionResponse, error) {
+
+	userCanReadDraftedAndArchivedArticle, ok := ctx.Value(constanta.LocalUserCanReadDraftedAndArchivedArticle).(bool)
+	if !ok {
+		return nil, errors.New("error when parsing user permission")
+	}
+
+	statuses := []constanta.ArticleVersionStatus{constanta.Published}
+
+	if userCanReadDraftedAndArchivedArticle {
+		statuses = append(statuses, constanta.Draft, constanta.Archived)
+	}
+
+	articleVersions, err := as.ArticleRepo.GetArticleVersionsWithArticleIDAndStatuses(ctx, articleID, statuses...)
+	if err != nil {
+		return nil, err
+	}
+
+	res := make([]params.ArticleVersionResponse, len(articleVersions))
+	for i, articleVersion := range articleVersions {
+		res[i] = params.ArticleVersionResponse{
+			VersionID: articleVersion.ID,
+			Title:     articleVersion.Title,
+			Body:      articleVersion.Body,
+			Version:   articleVersion.Version,
+			Status:    int8(articleVersion.Status),
+			CreatedBy: articleVersion.CreatedBy,
+			CreatedAt: articleVersion.CreatedAt,
+			UpdatedBy: articleVersion.UpdatedBy,
+			UpdatedAt: articleVersion.UpdatedAt,
+		}
+	}
+
+	return res, nil
+}
+
+// TODO Pengambilan Daftar Artikel
+// => GET /articles

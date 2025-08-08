@@ -20,6 +20,8 @@ type (
 		UpdateStatusArticle(ctx context.Context, articleID, articleVersionID int64, status constanta.ArticleVersionStatus) error
 		CreateArticleVersion(ctx context.Context, articleID int64, articleVersionID int64, req params.CreateArticleVersionRequest) (*params.CreateArticleVersionResponse, error)
 		GetArticleWithID(ctx context.Context, articleID int64) (*params.GetArticleDetailResponse, error)
+		GetArticleVersionWithIDAndArticleID(ctx context.Context, articleID int64, articleVersionID int64) (*params.ArticleVersionResponse, error)
+		GetArticleVersions(ctx context.Context, articleID int64) ([]params.ArticleVersionResponse, error)
 	}
 
 	ArticleHandler struct {
@@ -158,4 +160,49 @@ func (ah *ArticleHandler) GetArticleDetailHandler(w http.ResponseWriter, r *http
 	}
 
 	sendSuccessResponse(w, http.StatusOK, articleDetail)
+}
+
+func (ah *ArticleHandler) GetArticleVersionWithIDAndArticleID(w http.ResponseWriter, r *http.Request) {
+	articleIDParam := chi.URLParam(r, "articleID")
+	articleVersionIDParam := chi.URLParam(r, "articleVersionID")
+
+	articleID, err := strconv.Atoi(articleIDParam)
+	if err != nil {
+		err = errors.New("error when parsing articleID")
+		sendErrorResponse(w, http.StatusBadRequest, err)
+		return
+	}
+
+	articleVersionID, err := strconv.Atoi(articleVersionIDParam)
+	if err != nil {
+		err = errors.New("error when parsing articleVersionID")
+		sendErrorResponse(w, http.StatusBadRequest, err)
+		return
+	}
+
+	articleVersion, err := ah.svc.GetArticleVersionWithIDAndArticleID(r.Context(), int64(articleID), int64(articleVersionID))
+	if err != nil {
+		sendErrorResponse(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	sendSuccessResponse(w, http.StatusOK, articleVersion)
+}
+
+func (ah *ArticleHandler) GetArticleVersionsHandler(w http.ResponseWriter, r *http.Request) {
+	articleIDParam := chi.URLParam(r, "articleID")
+	articleID, err := strconv.Atoi(articleIDParam)
+	if err != nil {
+		err = errors.New("error when parsing articleID")
+		sendErrorResponse(w, http.StatusBadRequest, err)
+		return
+	}
+
+	articleVersions, err := ah.svc.GetArticleVersions(r.Context(), int64(articleID))
+	if err != nil {
+		sendErrorResponse(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	sendSuccessResponse(w, http.StatusOK, articleVersions)
 }

@@ -3,8 +3,7 @@ package constanta
 type UserPermission int64
 
 const (
-	ReadDraftedArticle UserPermission = 1 << iota
-	ReadArchivedArticle
+	ReadDraftedAndArchivedArticle UserPermission = 1 << iota
 	CreateArticle
 	DeleteArticle
 	UpdateStatusArticle

@@ -8,14 +8,12 @@ import (
 var (
 	ContentWriter entity.UserRole = entity.NewUserRole(
 		"ContentWriter",
-		constanta.ReadDraftedArticle,
-		constanta.ReadArchivedArticle,
+		constanta.ReadDraftedAndArchivedArticle,
 		constanta.CreateArticle)
 
 	Editor entity.UserRole = entity.NewUserRole(
 		"Editor",
-		constanta.ReadDraftedArticle,
-		constanta.ReadArchivedArticle,
+		constanta.ReadDraftedAndArchivedArticle,
 		constanta.CreateArticle,
 		constanta.DeleteArticle,
 		constanta.UpdateStatusArticle)

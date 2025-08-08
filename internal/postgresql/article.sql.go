@@ -7,6 +7,7 @@ import (
 	"github.com/elangreza/content-management-system/internal/constanta"
 	"github.com/elangreza/content-management-system/internal/entity"
 	"github.com/google/uuid"
+	"github.com/lib/pq"
 )
 
 type (
@@ -323,4 +324,48 @@ func (ar *ArticleRepo) GetArticleVersionWithID(ctx context.Context, ID int64) (*
 	}
 
 	return articleVersion, nil
+}
+
+const (
+	getArticleVersionsWithArticleIDAndStatusesQuery = `SELECT id, article_id, title, body, "version", status, created_by, created_at, updated_by, updated_at
+	FROM article_versions WHERE article_id=$1 AND status = ANY($2) ORDER BY "version" DESC;`
+)
+
+func (ar *ArticleRepo) GetArticleVersionsWithArticleIDAndStatuses(ctx context.Context, articleID int64, status ...constanta.ArticleVersionStatus) ([]entity.ArticleVersion, error) {
+
+	if len(status) == 0 {
+		status = append(status, constanta.Published)
+	}
+
+	rows, err := ar.db.QueryContext(ctx, getArticleVersionsWithArticleIDAndStatusesQuery, articleID, pq.Array(status))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var versions []entity.ArticleVersion
+	for rows.Next() {
+		var version entity.ArticleVersion
+		updatedAt := sql.NullTime{}
+		if err := rows.Scan(
+			&version.ID,
+			&version.ArticleID,
+			&version.Title,
+			&version.Body,
+			&version.Version,
+			&version.Status,
+			&version.CreatedBy,
+			&version.CreatedAt,
+			&version.UpdatedBy,
+			&updatedAt,
+		); err != nil {
+			return nil, err
+		}
+		if updatedAt.Valid {
+			version.UpdatedAt = &updatedAt.Time
+		}
+		versions = append(versions, version)
+	}
+
+	return versions, rows.Err()
 }

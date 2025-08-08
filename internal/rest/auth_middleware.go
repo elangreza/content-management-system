@@ -89,3 +89,35 @@ func (am *AuthMiddleware) MustHavePermission(permissions ...constanta.UserPermis
 		})
 	}
 }
+
+func (am *AuthMiddleware) OptionalAuthMiddleware() func(next http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+			rawAuthorization := r.Header["Authorization"]
+			if len(rawAuthorization) > 0 {
+				authorization := rawAuthorization[0]
+
+				rawToken := strings.Split(authorization, " ")
+				if len(rawToken) != 2 {
+					sendErrorResponse(w, http.StatusBadRequest, errors.New("token not valid"))
+					return
+				}
+
+				token := rawToken[1]
+
+				userID, err := am.svc.ProcessToken(r.Context(), token)
+				if err != nil {
+					sendErrorResponse(w, http.StatusUnauthorized, errors.New("cannot unauthorize this user"))
+					return
+				}
+
+				ctx := context.WithValue(r.Context(), constanta.LocalUserID, userID)
+
+				r = r.WithContext(ctx)
+			}
+
+			next.ServeHTTP(w, r)
+		})
+	}
+}
