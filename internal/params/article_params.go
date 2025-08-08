@@ -5,9 +5,17 @@ type CreateArticleRequest struct {
 }
 
 type CreateArticleResponse struct {
-	ID int
+	ArticleID int64
 }
 
 type UpdateArticleStatusRequest struct {
-	Status int8 `json:"status"` // e.g., 0 for draft, 1 for published, 2 for archived, 3 for deleted
+	Status int8 `json:"status"`
+}
+
+type CreateArticleVersionRequest struct {
+	Title, Body string
+}
+
+type CreateArticleVersionResponse struct {
+	ArticleVersionID int64
 }

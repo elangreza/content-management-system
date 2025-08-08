@@ -13,10 +13,12 @@ import (
 
 type (
 	articleRepo interface {
-		CreateArticle(ctx context.Context, article entity.Article) (int, error)
+		CreateArticle(ctx context.Context, article entity.Article) (int64, error)
 		DeleteArticle(ctx context.Context, articleID int64) error
 		GetArticleVersionWithIDAndArticleID(ctx context.Context, articleID int64, articleVersionID int64) (*entity.ArticleVersion, error)
-		UpdateArticleVersion(ctx context.Context, articleID int64, articleVersionID int64, status constanta.ArticleVersionStatus) error
+		UpdateArticleVersion(ctx context.Context, articleID int64, articleVersionID int64, status constanta.ArticleVersionStatus, updatedBy uuid.UUID) error
+		CreateArticleVersion(ctx context.Context, articleVersion entity.ArticleVersion) (int64, error)
+		GetArticleWithID(ctx context.Context, articleID int64) (*entity.Article, error)
 	}
 
 	ArticleService struct {
@@ -50,7 +52,7 @@ func (as *ArticleService) CreateArticle(ctx context.Context, req params.CreateAr
 	}
 
 	return &params.CreateArticleResponse{
-		ID: id,
+		ArticleID: id,
 	}, nil
 }
 
@@ -61,6 +63,16 @@ func (as *ArticleService) DeleteArticle(ctx context.Context, articleID int64) er
 
 // => PUT /articles/{id}/versions/{id}/status
 func (as *ArticleService) UpdateStatusArticle(ctx context.Context, articleID, articleVersionID int64, status constanta.ArticleVersionStatus) error {
+	localUserID, ok := ctx.Value(constanta.LocalUserID).(string)
+	if !ok {
+		return errors.New("error when handle ctx value")
+	}
+
+	userID, err := uuid.Parse(localUserID)
+	if err != nil {
+		return errors.New("error when parsing userID")
+	}
+
 	articleVersion, err := as.ArticleRepo.GetArticleVersionWithIDAndArticleID(ctx, articleID, articleVersionID)
 	if err != nil {
 		return err
@@ -74,21 +86,61 @@ func (as *ArticleService) UpdateStatusArticle(ctx context.Context, articleID, ar
 		return errs.ValidationError{Message: "status cannot be downgraded"}
 	}
 
-	return as.ArticleRepo.UpdateArticleVersion(ctx, articleID, articleVersionID, status)
+	return as.ArticleRepo.UpdateArticleVersion(ctx, articleID, articleVersionID, status, userID)
 }
 
-// DONE Pembuatan Artikel Baru
+// => POST /articles/{id}/versions/{id}
+func (as *ArticleService) CreateArticleVersion(ctx context.Context, articleID int64, articleVersionID int64, req params.CreateArticleVersionRequest) (*params.CreateArticleVersionResponse, error) {
+	localUserID, ok := ctx.Value(constanta.LocalUserID).(string)
+	if !ok {
+		return nil, errors.New("error when handle ctx value")
+	}
+
+	userID, err := uuid.Parse(localUserID)
+	if err != nil {
+		return nil, errors.New("error when parsing userID")
+	}
+
+	articleVersion, err := as.ArticleRepo.GetArticleVersionWithIDAndArticleID(ctx, articleID, articleVersionID)
+	if err != nil {
+		return nil, err
+	}
+
+	if articleVersion.Title == req.Title && articleVersion.Body == req.Body {
+		return nil, errs.ValidationError{Message: "title and body cannot be the same as the current version"}
+	}
+
+	article, err := as.ArticleRepo.GetArticleWithID(ctx, articleID)
+	if err != nil {
+		return nil, err
+	}
+
+	version := article.VersionSequence + 1
+	newArticleVersion := entity.NewArticleVersion(articleID, req.Title, req.Body, userID, version)
+	newArticleVersionID, err := as.ArticleRepo.CreateArticleVersion(ctx, *newArticleVersion)
+	if err != nil {
+		return nil, err
+	}
+
+	return &params.CreateArticleVersionResponse{
+		ArticleVersionID: newArticleVersionID,
+	}, nil
+}
+
+// DONE
+// Pembuatan Artikel Baru
 // => POST /articles
+// Penghapusan Artikel
+// => DELETE /articles/{id}
+// Perubahan Status Versi Artikel
+// => PUT /articles/{id}/versions/{id}/status
+// Pembuatan Versi Artikel Baru
+// => POST /articles/{id}/versions/{id}
+
 // TODO Pengambilan Daftar Artikel
 // => GET /articles
 // TODO Pengambilan Detail Artikel Terbaru
 // => POST /articles/{id}
-// TODO Pembuatan Versi Artikel Baru
-// => POST /articles/{id}/versions/{id}
-// DONE Penghapusan Artikel
-// => DELETE /articles/{id}
-// DONE Perubahan Status Versi Artikel
-// => PUT /articles/{id}/versions/{id}/status
 // TODO Pengambilan Daftar Versi Artikel
 // => GET /articles/{id}/versions
 // TODO Pengambilan Detail Versi Artikel Tertentu

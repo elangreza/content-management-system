@@ -18,6 +18,7 @@ type (
 		CreateArticle(ctx context.Context, req params.CreateArticleRequest) (*params.CreateArticleResponse, error)
 		DeleteArticle(ctx context.Context, articleID int64) error
 		UpdateStatusArticle(ctx context.Context, articleID, articleVersionID int64, status constanta.ArticleVersionStatus) error
+		CreateArticleVersion(ctx context.Context, articleID int64, articleVersionID int64, req params.CreateArticleVersionRequest) (*params.CreateArticleVersionResponse, error)
 	}
 
 	ArticleHandler struct {
@@ -34,6 +35,7 @@ func NewArticleRouter(router chi.Router, ArticleService ArticleService) {
 	router.Post("/articles", ArticleHandler.CreateArticleHandler)
 	router.Delete("/articles/{articleID}", ArticleHandler.DeleteArticleHandler)
 	router.Put("/articles/{articleID}/versions/{articleVersionID}/status", ArticleHandler.UpdateArticleStatusHandler)
+	router.Post("/articles/{articleID}/versions/{articleVersionID}", ArticleHandler.CreateArticleVersionHandler)
 }
 
 func (ah *ArticleHandler) CreateArticleHandler(w http.ResponseWriter, r *http.Request) {
@@ -115,4 +117,37 @@ func (ah *ArticleHandler) UpdateArticleStatusHandler(w http.ResponseWriter, r *h
 	}
 
 	sendSuccessResponse(w, http.StatusOK, "ok")
+}
+
+func (ah *ArticleHandler) CreateArticleVersionHandler(w http.ResponseWriter, r *http.Request) {
+	articleIDParam := chi.URLParam(r, "articleID")
+	articleVersionIDParam := chi.URLParam(r, "articleVersionID")
+
+	articleID, err := strconv.Atoi(articleIDParam)
+	if err != nil {
+		err = errors.New("error when parsing articleID")
+		sendErrorResponse(w, http.StatusBadRequest, err)
+		return
+	}
+
+	articleVersionID, err := strconv.Atoi(articleVersionIDParam)
+	if err != nil {
+		err = errors.New("error when parsing articleVersionID")
+		sendErrorResponse(w, http.StatusBadRequest, err)
+		return
+	}
+
+	var body params.CreateArticleVersionRequest
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sendErrorResponse(w, http.StatusBadRequest, errs.ValidationError{Message: err.Error()})
+		return
+	}
+
+	newArticleVersion, err := ah.svc.CreateArticleVersion(r.Context(), int64(articleID), int64(articleVersionID), body)
+	if err != nil {
+		sendErrorResponse(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	sendSuccessResponse(w, http.StatusOK, newArticleVersion)
 }
