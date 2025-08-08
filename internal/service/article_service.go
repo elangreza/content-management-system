@@ -19,6 +19,7 @@ type (
 		UpdateArticleVersion(ctx context.Context, articleID int64, articleVersionID int64, status constanta.ArticleVersionStatus, updatedBy uuid.UUID) error
 		CreateArticleVersion(ctx context.Context, articleVersion entity.ArticleVersion) (int64, error)
 		GetArticleWithID(ctx context.Context, articleID int64) (*entity.Article, error)
+		GetArticleVersionWithID(ctx context.Context, ID int64) (*entity.ArticleVersion, error)
 	}
 
 	ArticleService struct {
@@ -56,7 +57,7 @@ func (as *ArticleService) DeleteArticle(ctx context.Context, articleID int64) er
 }
 
 // => PUT /articles/{id}/versions/{id}/status
-func (as *ArticleService) UpdateStatusArticle(ctx context.Context, articleID, articleVersionID int64, status constanta.ArticleVersionStatus) error {
+func (as *ArticleService) UpdateStatusArticle(ctx context.Context, articleID, articleVersionID int64, reqStatus constanta.ArticleVersionStatus) error {
 	userID, ok := ctx.Value(constanta.LocalUserID).(uuid.UUID)
 	if !ok {
 		return errors.New("error when parsing userID")
@@ -67,15 +68,15 @@ func (as *ArticleService) UpdateStatusArticle(ctx context.Context, articleID, ar
 		return err
 	}
 
-	if status == articleVersion.Status {
+	if reqStatus == articleVersion.Status {
 		return errs.ValidationError{Message: "status cannot be same as current status"}
 	}
 
-	if status < articleVersion.Status {
+	if reqStatus < articleVersion.Status {
 		return errs.ValidationError{Message: "status cannot be downgraded"}
 	}
 
-	return as.ArticleRepo.UpdateArticleVersion(ctx, articleID, articleVersionID, status, userID)
+	return as.ArticleRepo.UpdateArticleVersion(ctx, articleID, articleVersionID, reqStatus, userID)
 }
 
 // => POST /articles/{id}/versions/{id}
@@ -120,6 +121,8 @@ func (as *ArticleService) CreateArticleVersion(ctx context.Context, articleID in
 // => PUT /articles/{id}/versions/{id}/status
 // Pembuatan Versi Artikel Baru
 // => POST /articles/{id}/versions/{id}
+// Pengambilan Detail Artikel Terbaru
+// => POST /articles/{id}
 
 // TODO Pengambilan Daftar Artikel
 // => GET /articles
@@ -127,8 +130,64 @@ func (as *ArticleService) CreateArticleVersion(ctx context.Context, articleID in
 // 	return nil, nil
 // }
 
-// TODO Pengambilan Detail Artikel Terbaru
 // => POST /articles/{id}
+func (as *ArticleService) GetArticleWithID(ctx context.Context, articleID int64) (*params.GetArticleDetailResponse, error) {
+	article, err := as.ArticleRepo.GetArticleWithID(ctx, articleID)
+	if err != nil {
+		return nil, err
+	}
+
+	var articleVersionResponse *params.ArticleVersionResponse
+	if article.DraftedVersionID != 0 {
+		draftedVersion, err := as.ArticleRepo.GetArticleVersionWithIDAndArticleID(ctx, article.ID, article.DraftedVersionID)
+		if err != nil {
+			return nil, err
+		}
+
+		articleVersionResponse = &params.ArticleVersionResponse{
+			VersionID: draftedVersion.ID,
+			Title:     draftedVersion.Title,
+			Body:      draftedVersion.Body,
+			Version:   draftedVersion.Version,
+			Status:    int8(draftedVersion.Status),
+			CreatedBy: draftedVersion.CreatedBy,
+			CreatedAt: draftedVersion.CreatedAt,
+			UpdatedBy: draftedVersion.UpdatedBy,
+			UpdatedAt: draftedVersion.UpdatedAt,
+		}
+	}
+
+	var publishedVersionResponse *params.ArticleVersionResponse
+	if article.PublishedVersionID != 0 {
+		publishedVersion, err := as.ArticleRepo.GetArticleVersionWithIDAndArticleID(ctx, article.ID, article.PublishedVersionID)
+		if err != nil {
+			return nil, err
+		}
+
+		publishedVersionResponse = &params.ArticleVersionResponse{
+			VersionID: publishedVersion.ID,
+			Title:     publishedVersion.Title,
+			Body:      publishedVersion.Body,
+			Version:   publishedVersion.Version,
+			Status:    int8(publishedVersion.Status),
+			CreatedBy: publishedVersion.CreatedBy,
+			CreatedAt: publishedVersion.CreatedAt,
+			UpdatedBy: publishedVersion.UpdatedBy,
+			UpdatedAt: publishedVersion.UpdatedAt,
+		}
+	}
+
+	return &params.GetArticleDetailResponse{
+		ID:               article.ID,
+		DraftedVersion:   articleVersionResponse,
+		PublishedVersion: publishedVersionResponse,
+		CreatedAt:        article.CreatedAt,
+		CreatedBy:        article.CreatedBy,
+		UpdatedAt:        article.UpdatedAt,
+		UpdatedBy:        article.UpdatedBy,
+	}, nil
+}
+
 // TODO Pengambilan Daftar Versi Artikel
 // => GET /articles/{id}/versions
 // TODO Pengambilan Detail Versi Artikel Tertentu

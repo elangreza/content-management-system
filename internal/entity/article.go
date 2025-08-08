@@ -44,7 +44,7 @@ func NewArticle(title, body string, createdBy uuid.UUID) *Article {
 			{
 				Title:     title,
 				Body:      body,
-				Status:    constanta.Pending,
+				Status:    constanta.Draft,
 				Version:   1,
 				CreatedBy: createdBy,
 			},
@@ -57,7 +57,7 @@ func NewArticleVersion(articleID int64, title, body string, createdBy uuid.UUID,
 		ArticleID: articleID,
 		Title:     title,
 		Body:      body,
-		Status:    constanta.Pending,
+		Status:    constanta.Draft,
 		Version:   version,
 		CreatedBy: createdBy,
 	}

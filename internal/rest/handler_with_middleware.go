@@ -44,5 +44,8 @@ func NewHandlerWithMiddleware(
 			rUpdateStatusPermission.Use(authMiddleware.MustHavePermission(constanta.UpdateStatusArticle))
 			rUpdateStatusPermission.Put("/articles/{articleID}/versions/{articleVersionID}/status", articleHandler.UpdateArticleStatusHandler)
 		})
+
 	})
+
+	publicRoute.Get("/articles/{articleID}", articleHandler.GetArticleDetailHandler)
 }

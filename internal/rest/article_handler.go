@@ -19,6 +19,7 @@ type (
 		DeleteArticle(ctx context.Context, articleID int64) error
 		UpdateStatusArticle(ctx context.Context, articleID, articleVersionID int64, status constanta.ArticleVersionStatus) error
 		CreateArticleVersion(ctx context.Context, articleID int64, articleVersionID int64, req params.CreateArticleVersionRequest) (*params.CreateArticleVersionResponse, error)
+		GetArticleWithID(ctx context.Context, articleID int64) (*params.GetArticleDetailResponse, error)
 	}
 
 	ArticleHandler struct {
@@ -138,4 +139,23 @@ func (ah *ArticleHandler) CreateArticleVersionHandler(w http.ResponseWriter, r *
 	}
 
 	sendSuccessResponse(w, http.StatusOK, newArticleVersion)
+}
+
+func (ah *ArticleHandler) GetArticleDetailHandler(w http.ResponseWriter, r *http.Request) {
+	articleIDParam := chi.URLParam(r, "articleID")
+
+	articleID, err := strconv.Atoi(articleIDParam)
+	if err != nil {
+		err = errors.New("error when parsing articleID")
+		sendErrorResponse(w, http.StatusBadRequest, err)
+		return
+	}
+
+	articleDetail, err := ah.svc.GetArticleWithID(r.Context(), int64(articleID))
+	if err != nil {
+		sendErrorResponse(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	sendSuccessResponse(w, http.StatusOK, articleDetail)
 }

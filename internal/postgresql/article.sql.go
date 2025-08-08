@@ -133,7 +133,7 @@ func (ar *ArticleRepo) GetArticleVersionWithIDAndArticleID(ctx context.Context, 
 
 const (
 	updateArticleVersionWithStatusPublishedIntoArchivedQuery = `UPDATE article_versions
-		SET status=$1, updated_by=$2 WHERE article_id=$3;`
+		SET status=$1, updated_by=$2 WHERE article_id=$3 AND status=$4;`
 	updateArticleVersionQuery = `UPDATE article_versions
 		SET status=$1, updated_by=$2 WHERE article_id=$3 AND id=$4;`
 	updateArticlePublishedIdQuery = `UPDATE articles
@@ -148,6 +148,7 @@ func (ar *ArticleRepo) UpdateArticleVersion(ctx context.Context, articleID, arti
 				constanta.Archived,
 				updatedBy,
 				articleID,
+				constanta.Published,
 			); err != nil {
 				return err
 			}
@@ -162,12 +163,45 @@ func (ar *ArticleRepo) UpdateArticleVersion(ctx context.Context, articleID, arti
 			return err
 		}
 
-		if _, err := tx.ExecContext(ctx, updateArticlePublishedIdQuery,
-			articleVersionID,
-			updatedBy,
-			articleID,
-		); err != nil {
-			return err
+		if status == constanta.Published {
+			if _, err := tx.ExecContext(ctx, updateArticlePublishedIdQuery,
+				articleVersionID,
+				updatedBy,
+				articleID,
+			); err != nil {
+				return err
+			}
+
+			// Ensure the version exists
+			// if there's no draft version, set the drafted_version_id to NULL
+			// This is to ensure that the article has a valid draft version
+			rows, err := tx.QueryContext(ctx, "SELECT id FROM article_versions WHERE status=$1 AND article_id = $2 ORDER BY version DESC LIMIT 1", constanta.Draft, articleID)
+			if err != nil {
+				return err
+			}
+			defer rows.Close()
+			draftedVersions := make([]int64, 0)
+			for rows.Next() {
+				var draftVersionID int64
+				if err := rows.Scan(&draftVersionID); err != nil {
+					return err
+				}
+				draftedVersions = append(draftedVersions, draftVersionID)
+			}
+			if err := rows.Err(); err != nil {
+				return err
+			}
+
+			// If there are pending versions, set the drafted_version_id to the first one
+			if len(draftedVersions) > 0 {
+				if _, err := tx.ExecContext(ctx, "UPDATE articles SET drafted_version_id=$1 WHERE id=$2", draftedVersions[0], articleID); err != nil {
+					return err
+				}
+			} else {
+				if _, err := tx.ExecContext(ctx, "UPDATE articles SET drafted_version_id=NULL WHERE id=$1", articleID); err != nil {
+					return err
+				}
+			}
 		}
 
 		return nil
@@ -211,8 +245,8 @@ func (ar *ArticleRepo) CreateArticleVersion(ctx context.Context, articleVersion 
 const (
 	getArticleWithIDQuery = `SELECT 
 		id, 
-		drafted_version_id, 
 		published_version_id, 
+		drafted_version_id, 
 		version_sequence, 
 		created_by, 
 		created_at, 
@@ -247,4 +281,46 @@ func (ar *ArticleRepo) GetArticleWithID(ctx context.Context, articleID int64) (*
 	}
 
 	return article, nil
+}
+
+const (
+	getArticleVersionWithIDQuery = `SELECT 
+		id, 
+		article_id, 
+		title, 
+		body, 
+		"version", 
+		status, 
+		created_by, 
+		created_at,
+		updated_by,
+		updated_at
+	FROM article_versions
+	WHERE id=$1;`
+)
+
+func (ar *ArticleRepo) GetArticleVersionWithID(ctx context.Context, ID int64) (*entity.ArticleVersion, error) {
+	articleVersion := &entity.ArticleVersion{}
+	updatedAt := sql.NullTime{}
+	err := ar.db.QueryRowContext(ctx, getArticleWithIDQuery, ID).Scan(
+		&articleVersion.ID,
+		&articleVersion.ArticleID,
+		&articleVersion.Title,
+		&articleVersion.Body,
+		&articleVersion.Version,
+		&articleVersion.Status,
+		&articleVersion.CreatedBy,
+		&articleVersion.CreatedAt,
+		&articleVersion.UpdatedBy,
+		&updatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	if updatedAt.Valid {
+		articleVersion.UpdatedAt = &updatedAt.Time
+	}
+
+	return articleVersion, nil
 }
