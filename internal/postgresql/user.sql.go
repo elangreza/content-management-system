@@ -22,7 +22,7 @@ func NewUserRepo(db *sql.DB) *UserRepo {
 
 const (
 	createUserQuery = `INSERT INTO users
-	(id, "name", email, "password", "permission")
+	(id, "name", email, "password", "role")
 	VALUES($1, $2, $3, $4, $5);`
 )
 
@@ -33,7 +33,7 @@ func (u *UserRepo) CreateUser(ctx context.Context, user entity.User) error {
 		user.Name,
 		user.Email,
 		user.GetPassword(),
-		user.Permission)
+		user.Role)
 	if err != nil {
 		return err
 	}
@@ -47,7 +47,7 @@ const (
 		"name", 
 		email, 
 		"password", 
-		"permission", 
+		"role", 
 		created_at,
 		updated_at
 	FROM 
@@ -66,7 +66,7 @@ func (u *UserRepo) GetUserByEmail(ctx context.Context, email string) (*entity.Us
 		&user.Name,
 		&user.Email,
 		&password,
-		&user.Permission,
+		&user.Role,
 		&user.CreatedAt,
 		&user.UpdatedAt,
 	)
@@ -85,7 +85,7 @@ const (
 		"name", 
 		email, 
 		"password", 
-		"permission", 
+		"role", 
 		created_at,
 		updated_at
 	FROM 
@@ -103,7 +103,7 @@ func (u *UserRepo) GetUserByID(ctx context.Context, id uuid.UUID) (*entity.User,
 		&user.Name,
 		&user.Email,
 		&password,
-		&user.Permission,
+		&user.Role,
 		&user.CreatedAt,
 		&user.UpdatedAt,
 	)
@@ -114,4 +114,26 @@ func (u *UserRepo) GetUserByID(ctx context.Context, id uuid.UUID) (*entity.User,
 	user.SetPassword(password)
 
 	return user, nil
+}
+
+const (
+	getUserRoleByUserIDQuery = `SELECT 
+		role
+	FROM		
+		users
+	WHERE 
+		id=$1;`
+)
+
+// GetUserRoleByUserID implements userRepo.
+func (u *UserRepo) GetUserRoleByUserID(ctx context.Context, id uuid.UUID) (*entity.UserRole, error) {
+	userRole := &entity.UserRole{}
+	err := u.db.QueryRowContext(ctx, getUserRoleByUserIDQuery, id).Scan(
+		&userRole,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return userRole, nil
 }

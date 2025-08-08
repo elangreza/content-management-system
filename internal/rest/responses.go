@@ -48,10 +48,7 @@ func sendErrorResponse(w http.ResponseWriter, status int, err error) {
 		slog.Error("handler", "request", err.Error())
 		status = errs.MethodNotAllowedError{}.HttpStatusCode()
 		apiErr.Message = err.Error()
-	case status == http.StatusBadRequest:
-		slog.Error("handler", "request", err.Error())
-		apiErr.Message = err.Error()
-	case status == http.StatusUnauthorized:
+	case status == http.StatusBadRequest, status == http.StatusUnauthorized, status == http.StatusForbidden:
 		slog.Error("handler", "request", err.Error())
 		apiErr.Message = err.Error()
 	default:

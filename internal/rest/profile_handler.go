@@ -5,7 +5,6 @@ import (
 	"net/http"
 
 	"github.com/elangreza/content-management-system/internal/params"
-	"github.com/go-chi/chi/v5"
 )
 
 type (
@@ -17,15 +16,6 @@ type (
 		svc ProfileService
 	}
 )
-
-func NewProfileRouter(router chi.Router, profileService ProfileService) {
-
-	profileHandler := ProfileHandler{
-		svc: profileService,
-	}
-
-	router.Get("/profile", profileHandler.ProfileUserHandler)
-}
 
 func (ah *ProfileHandler) ProfileUserHandler(w http.ResponseWriter, r *http.Request) {
 

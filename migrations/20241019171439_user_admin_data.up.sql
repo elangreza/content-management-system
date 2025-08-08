@@ -4,7 +4,7 @@ INSERT INTO
         "name",
         email,
         "password",
-        "permission"
+        "role"
     )
 VALUES
     (

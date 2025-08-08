@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS "users" (
     "name" VARCHAR(50) NOT NULL UNIQUE,
     "email" VARCHAR(50) NOT NULL UNIQUE,
     "password" BYTEA NOT NULL,
-    "permission" BIGINT NOT NULL DEFAULT 0,
+    "role" BIGINT NOT NULL DEFAULT 0,
     "created_at" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     "updated_at" TIMESTAMPTZ NULL
 );

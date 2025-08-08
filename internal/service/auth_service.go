@@ -18,6 +18,7 @@ type (
 		CreateUser(ctx context.Context, user entity.User) error
 		GetUserByEmail(ctx context.Context, email string) (*entity.User, error)
 		GetUserByID(ctx context.Context, id uuid.UUID) (*entity.User, error)
+		GetUserRoleByUserID(ctx context.Context, id uuid.UUID) (*entity.UserRole, error)
 	}
 
 	tokenRepo interface {
@@ -118,4 +119,15 @@ func (as *AuthService) ProcessToken(ctx context.Context, reqToken string) (uuid.
 	}
 
 	return token.UserID, nil
+}
+
+func (as *AuthService) GetUserRoleByUserID(ctx context.Context, id uuid.UUID) (*entity.UserRole, error) {
+	userRole, err := as.UserRepo.GetUserRoleByUserID(ctx, id)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, errs.NotFound{Name: "user"}
+		}
+		return nil, err
+	}
+	return userRole, nil
 }

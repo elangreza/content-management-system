@@ -34,14 +34,8 @@ func NewArticleService(articleRepo articleRepo) *ArticleService {
 
 // => POST /articles
 func (as *ArticleService) CreateArticle(ctx context.Context, req params.CreateArticleRequest) (*params.CreateArticleResponse, error) {
-
-	localUserID, ok := ctx.Value(constanta.LocalUserID).(string)
+	userID, ok := ctx.Value(constanta.LocalUserID).(uuid.UUID)
 	if !ok {
-		return nil, errors.New("error when handle ctx value")
-	}
-
-	userID, err := uuid.Parse(localUserID)
-	if err != nil {
 		return nil, errors.New("error when parsing userID")
 	}
 
@@ -63,13 +57,8 @@ func (as *ArticleService) DeleteArticle(ctx context.Context, articleID int64) er
 
 // => PUT /articles/{id}/versions/{id}/status
 func (as *ArticleService) UpdateStatusArticle(ctx context.Context, articleID, articleVersionID int64, status constanta.ArticleVersionStatus) error {
-	localUserID, ok := ctx.Value(constanta.LocalUserID).(string)
+	userID, ok := ctx.Value(constanta.LocalUserID).(uuid.UUID)
 	if !ok {
-		return errors.New("error when handle ctx value")
-	}
-
-	userID, err := uuid.Parse(localUserID)
-	if err != nil {
 		return errors.New("error when parsing userID")
 	}
 
@@ -91,13 +80,8 @@ func (as *ArticleService) UpdateStatusArticle(ctx context.Context, articleID, ar
 
 // => POST /articles/{id}/versions/{id}
 func (as *ArticleService) CreateArticleVersion(ctx context.Context, articleID int64, articleVersionID int64, req params.CreateArticleVersionRequest) (*params.CreateArticleVersionResponse, error) {
-	localUserID, ok := ctx.Value(constanta.LocalUserID).(string)
+	userID, ok := ctx.Value(constanta.LocalUserID).(uuid.UUID)
 	if !ok {
-		return nil, errors.New("error when handle ctx value")
-	}
-
-	userID, err := uuid.Parse(localUserID)
-	if err != nil {
 		return nil, errors.New("error when parsing userID")
 	}
 
@@ -139,6 +123,10 @@ func (as *ArticleService) CreateArticleVersion(ctx context.Context, articleID in
 
 // TODO Pengambilan Daftar Artikel
 // => GET /articles
+// func (as *ArticleService) GetArticles(ctx context.Context, param params.GetParamRequest) (*entity.Article, error) {
+// 	return nil, nil
+// }
+
 // TODO Pengambilan Detail Artikel Terbaru
 // => POST /articles/{id}
 // TODO Pengambilan Daftar Versi Artikel

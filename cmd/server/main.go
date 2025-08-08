@@ -42,16 +42,9 @@ func main() {
 	profileService := service.NewProfileService(ur)
 	articleService := service.NewArticleService(ar)
 
-	// middleware
-	am := rest.NewAuthMiddleware(authService)
-
 	rest.NewAuthRouter(c, authService)
-
-	c.Group(func(r chi.Router) {
-		r.Use(am.MustAuthMiddleware())
-		rest.NewProfileRouter(r, profileService)
-		rest.NewArticleRouter(r, articleService)
-	})
+	// private routes
+	rest.NewHandlerWithMiddleware(c, profileService, authService, articleService)
 
 	srv := &http.Server{
 		Addr:           fmt.Sprintf(":%s", cfg.HTTP_PORT),

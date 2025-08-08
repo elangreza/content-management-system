@@ -14,7 +14,6 @@ type (
 	AutService interface {
 		RegisterUser(ctx context.Context, req params.RegisterUserRequest) error
 		LoginUser(ctx context.Context, req params.LoginUserRequest) (string, error)
-		// ProcessToken(ctx context.Context, reqToken string) (*entity.User, error)
 	}
 
 	AuthHandler struct {

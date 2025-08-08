@@ -26,18 +26,6 @@ type (
 	}
 )
 
-func NewArticleRouter(router chi.Router, ArticleService ArticleService) {
-
-	ArticleHandler := ArticleHandler{
-		svc: ArticleService,
-	}
-
-	router.Post("/articles", ArticleHandler.CreateArticleHandler)
-	router.Delete("/articles/{articleID}", ArticleHandler.DeleteArticleHandler)
-	router.Put("/articles/{articleID}/versions/{articleVersionID}/status", ArticleHandler.UpdateArticleStatusHandler)
-	router.Post("/articles/{articleID}/versions/{articleVersionID}", ArticleHandler.CreateArticleVersionHandler)
-}
-
 func (ah *ArticleHandler) CreateArticleHandler(w http.ResponseWriter, r *http.Request) {
 
 	body := params.CreateArticleRequest{}

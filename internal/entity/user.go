@@ -13,8 +13,7 @@ type User struct {
 	Email    string    `db:"email"`
 	Name     string    `db:"name"`
 	password []byte    `db:"password"`
-	// default 0
-	Permission int
+	Role     UserRole
 
 	CreatedAt time.Time    `db:"created_at"`
 	UpdatedAt sql.NullTime `db:"updated_at"`
@@ -51,31 +50,3 @@ func (u *User) GetPassword() []byte {
 func (u *User) SetPassword(password []byte) {
 	u.password = password
 }
-
-// func (u *User) ValidPermission(reqPermission int) bool {
-// 	return (u.Permission & reqPermission) > 0
-// }
-
-// var UserValPermission = UserPermission{
-// 	Val:  1,
-// 	Name: "user",
-// }
-
-// var AdminValPermission = UserPermission{
-// 	Val:  2,
-// 	Name: "admin",
-// }
-
-// var DefaultUserPermissions = []UserPermission{UserValPermission, AdminValPermission}
-
-// func (u *User) LoadPermissions() {
-// 	if len(u.Permissions) > 0 {
-// 		return
-// 	}
-
-// 	for _, permission := range DefaultUserPermissions {
-// 		if u.ValidPermission(permission.Val) && permission.Val <= u.Permission {
-// 			u.Permissions = append(u.Permissions, permission)
-// 		}
-// 	}
-// }
