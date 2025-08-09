@@ -3,6 +3,8 @@ package service
 import (
 	"context"
 	"errors"
+	"reflect"
+	"slices"
 
 	"github.com/elangreza/content-management-system/internal/constanta"
 	"github.com/elangreza/content-management-system/internal/entity"
@@ -13,7 +15,7 @@ import (
 
 type (
 	articleRepo interface {
-		CreateArticle(ctx context.Context, article entity.Article) (int64, error)
+		CreateArticle(ctx context.Context, article entity.Article, articleVersion entity.ArticleVersion) (int64, error)
 		DeleteArticle(ctx context.Context, articleID int64) error
 		GetArticleVersionWithIDAndArticleID(ctx context.Context, articleID int64, articleVersionID int64) (*entity.ArticleVersion, error)
 		UpdateArticleStatus(ctx context.Context, articleID int64, articleVersionID int64, status constanta.ArticleVersionStatus, updatedBy uuid.UUID) error
@@ -21,6 +23,7 @@ type (
 		GetArticleWithID(ctx context.Context, articleID int64) (*entity.Article, error)
 		GetArticleVersionsWithArticleIDAndStatuses(ctx context.Context, ArticleID int64, status ...constanta.ArticleVersionStatus) ([]entity.ArticleVersion, error)
 		GetArticles(ctx context.Context, req entity.GetArticlesQueryServiceParams) ([]entity.ArticleVersion, error)
+		GetRawTagsWithArticleVersionID(ctx context.Context, articleVersionID int64) ([]string, error)
 	}
 
 	ArticleService struct {
@@ -42,7 +45,8 @@ func (as *ArticleService) CreateArticle(ctx context.Context, req params.CreateAr
 	}
 
 	article := entity.NewArticle(req.Title, req.Body, userID)
-	id, err := as.articleRepo.CreateArticle(ctx, *article)
+	articleVersion := entity.NewArticleVersion(article.ID, req.Title, req.Body, userID, 1, req.Tags)
+	id, err := as.articleRepo.CreateArticle(ctx, *article, *articleVersion)
 	if err != nil {
 		return nil, err
 	}
@@ -110,13 +114,20 @@ func (as *ArticleService) CreateArticleVersionWithReferenceFromArticleID(ctx con
 			return nil, err
 		}
 
-		if articleVersion.Title == req.Title && articleVersion.Body == req.Body {
-			return nil, errs.ValidationError{Message: "title and body cannot be the same as the current version"}
+		tags, err := as.articleRepo.GetRawTagsWithArticleVersionID(ctx, articleVersionID)
+		if err != nil {
+			return nil, err
+		}
+
+		slices.Sort(req.Tags)
+
+		if articleVersion.Title == req.Title && articleVersion.Body == req.Body && reflect.DeepEqual(tags, req.Tags) {
+			return nil, errs.ValidationError{Message: "title, tags and body cannot be the same as the current version"}
 		}
 	}
 
 	version := article.VersionSequence + 1
-	newArticleVersion := entity.NewArticleVersion(articleID, req.Title, req.Body, userID, version)
+	newArticleVersion := entity.NewArticleVersion(articleID, req.Title, req.Body, userID, version, req.Tags)
 	newArticleVersionID, err := as.articleRepo.CreateArticleVersion(ctx, *newArticleVersion)
 	if err != nil {
 		return nil, err
@@ -144,12 +155,19 @@ func (as *ArticleService) CreateArticleVersionWithReferenceFromArticleIDAindVers
 		return nil, err
 	}
 
-	if articleVersion.Title == req.Title && articleVersion.Body == req.Body {
-		return nil, errs.ValidationError{Message: "title and body cannot be the same as the current version"}
+	tags, err := as.articleRepo.GetRawTagsWithArticleVersionID(ctx, articleVersionID)
+	if err != nil {
+		return nil, err
+	}
+
+	slices.Sort(req.Tags)
+
+	if articleVersion.Title == req.Title && articleVersion.Body == req.Body && reflect.DeepEqual(tags, req.Tags) {
+		return nil, errs.ValidationError{Message: "title, tags and body cannot be the same as the current version"}
 	}
 
 	version := article.VersionSequence + 1
-	newArticleVersion := entity.NewArticleVersion(articleID, req.Title, req.Body, userID, version)
+	newArticleVersion := entity.NewArticleVersion(articleID, req.Title, req.Body, userID, version, req.Tags)
 	newArticleVersionID, err := as.articleRepo.CreateArticleVersion(ctx, *newArticleVersion)
 	if err != nil {
 		return nil, err
@@ -187,8 +205,6 @@ func (as *ArticleService) GetArticleWithID(ctx context.Context, articleID int64)
 	if !ok {
 		return nil, errors.New("error when parsing user permission")
 	}
-
-	// TODO check permission ReadDraftedOrArchivedArticle
 
 	var articleVersionResponse *params.ArticleVersionResponse
 	if article.DraftedVersionID != 0 && userCanReadDraftedAndArchivedArticle {
@@ -363,4 +379,8 @@ func (as *ArticleService) GetArticles(ctx context.Context, req params.GetArticle
 	}
 
 	return res, nil
+}
+
+func (as *ArticleService) GetRawTagsWithArticleVersionID(ctx context.Context, articleVersionID int64) ([]string, error) {
+	return as.articleRepo.GetRawTagsWithArticleVersionID(ctx, articleVersionID)
 }

@@ -31,36 +31,57 @@ const (
 		VALUES($1, $2, $3, $4, $5, $6) RETURNING id;`
 	updateLatestArticleVersionQuery = `UPDATE articles
 		SET updated_by=$1, drafted_version_id=$2, version_sequence=$3 WHERE id=$4;`
+	createArticleVersionTagsQuery = `INSERT INTO article_version_tags (article_version_id, tag_name)
+		VALUES ($1,$2) ON CONFLICT (article_version_id, tag_name) DO NOTHING;`
 )
 
 // CreateArticle implements ArticleRepo.
-func (ar *ArticleRepo) CreateArticle(ctx context.Context, article entity.Article) (int64, error) {
+func (ar *ArticleRepo) CreateArticle(ctx context.Context, article entity.Article, articleVersion entity.ArticleVersion) (int64, error) {
 	var articleID int64
 	err := runInTx(ctx, ar.db, func(tx *sql.Tx) error {
 		if err := tx.QueryRowContext(ctx, createArticleQuery, article.CreatedBy).Scan(&articleID); err != nil {
+			fmt.Println(1)
 			return err
 		}
 
-		versionID := 0
-		for _, articleVersion := range article.Versions {
-			if err := tx.QueryRowContext(ctx, createArticleVersionQuery,
-				articleID,
-				articleVersion.Title,
-				articleVersion.Body,
-				articleVersion.Version,
-				articleVersion.Status,
-				articleVersion.CreatedBy,
-			).Scan(&versionID); err != nil {
-				return err
+		articleVersionID := 0
+		if err := tx.QueryRowContext(ctx, createArticleVersionQuery,
+			articleID,
+			articleVersion.Title,
+			articleVersion.Body,
+			articleVersion.Version,
+			articleVersion.Status,
+			articleVersion.CreatedBy,
+		).Scan(&articleVersionID); err != nil {
+			fmt.Println(2)
+			return err
+		}
+
+		if len(articleVersion.Tags) > 0 {
+
+			// insert the tag relationship for this article version
+			for _, tag := range articleVersion.Tags {
+				_, err := tx.ExecContext(ctx, upsertTagQuery, tag)
+				if err != nil {
+					fmt.Println(3)
+					return err
+				}
+
+				_, err = tx.ExecContext(ctx, createArticleVersionTagsQuery, articleVersionID, tag)
+				if err != nil {
+					fmt.Println(4)
+					return err
+				}
 			}
 		}
 
 		if _, err := tx.ExecContext(ctx, updateLatestArticleVersionQuery,
 			article.CreatedBy,
-			versionID,
+			articleVersionID,
 			article.VersionSequence,
 			articleID,
 		); err != nil {
+			fmt.Println(5)
 			return err
 		}
 
@@ -234,6 +255,10 @@ func (ar *ArticleRepo) UpdateArticleStatus(ctx context.Context, articleID, artic
 	return err
 }
 
+const (
+	deleteArticleVersionTags = `DELETE FROM article_version_tags WHERE article_version_id = $1`
+)
+
 func (ar *ArticleRepo) CreateArticleVersion(ctx context.Context, articleVersion entity.ArticleVersion) (int64, error) {
 	var articleVersionID int64
 	err := runInTx(ctx, ar.db, func(tx *sql.Tx) error {
@@ -246,6 +271,28 @@ func (ar *ArticleRepo) CreateArticleVersion(ctx context.Context, articleVersion 
 			articleVersion.CreatedBy,
 		).Scan(&articleVersionID); err != nil {
 			return err
+		}
+
+		if len(articleVersion.Tags) > 0 {
+
+			// delete existing tag relationships for this article version
+			_, err := tx.ExecContext(ctx, `DELETE FROM article_version_tags WHERE article_version_id = $1`, articleVersionID)
+			if err != nil {
+				return err
+			}
+
+			// insert the tag relationship for this article version
+			for _, tag := range articleVersion.Tags {
+				_, err := tx.ExecContext(ctx, upsertTagQuery, tag)
+				if err != nil {
+					return err
+				}
+
+				_, err = tx.ExecContext(ctx, createArticleVersionTagsQuery, articleVersionID, tag)
+				if err != nil {
+					return err
+				}
+			}
 		}
 
 		if _, err := tx.ExecContext(ctx, updateLatestArticleVersionQuery,
@@ -478,4 +525,28 @@ func (ar *ArticleRepo) GetArticles(ctx context.Context, req entity.GetArticlesQu
 	}
 
 	return articleVersions, rows.Err()
+}
+
+func (ar *ArticleRepo) GetRawTagsWithArticleVersionID(ctx context.Context, articleVersionID int64) ([]string, error) {
+	query := `SELECT tag_name FROM article_version_tags WHERE article_version_id = $1 ORDER BY tag_name asc;`
+	rows, err := ar.db.QueryContext(ctx, query, articleVersionID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var tags []string
+	for rows.Next() {
+		var tag string
+		if err := rows.Scan(&tag); err != nil {
+			return nil, err
+		}
+		tags = append(tags, tag)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return tags, nil
 }

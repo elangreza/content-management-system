@@ -11,6 +11,7 @@ import (
 
 type CreateArticleRequest struct {
 	Title, Body string
+	Tags        []string
 }
 
 type CreateArticleResponse struct {
@@ -23,6 +24,7 @@ type UpdateArticleStatusRequest struct {
 
 type CreateArticleVersionRequest struct {
 	Title, Body string
+	Tags        []string
 }
 
 type CreateArticleVersionResponse struct {

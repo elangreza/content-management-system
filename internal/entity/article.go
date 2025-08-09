@@ -13,7 +13,6 @@ type (
 		PublishedVersionID int64
 		DraftedVersionID   int64
 		VersionSequence    int64
-		Versions           []ArticleVersion
 
 		CreatedBy uuid.UUID
 		CreatedAt time.Time
@@ -28,6 +27,7 @@ type (
 		Body             string
 		Version          int64
 		Status           constanta.ArticleVersionStatus
+		Tags             []string
 
 		CreatedBy uuid.UUID
 		CreatedAt time.Time
@@ -40,19 +40,10 @@ func NewArticle(title, body string, createdBy uuid.UUID) *Article {
 	return &Article{
 		CreatedBy:       createdBy,
 		VersionSequence: 1,
-		Versions: []ArticleVersion{
-			{
-				Title:     title,
-				Body:      body,
-				Status:    constanta.Draft,
-				Version:   1,
-				CreatedBy: createdBy,
-			},
-		},
 	}
 }
 
-func NewArticleVersion(articleID int64, title, body string, createdBy uuid.UUID, version int64) *ArticleVersion {
+func NewArticleVersion(articleID int64, title, body string, createdBy uuid.UUID, version int64, tags []string) *ArticleVersion {
 	return &ArticleVersion{
 		ArticleID: articleID,
 		Title:     title,
@@ -60,6 +51,7 @@ func NewArticleVersion(articleID int64, title, body string, createdBy uuid.UUID,
 		Status:    constanta.Draft,
 		Version:   version,
 		CreatedBy: createdBy,
+		Tags:      tags,
 	}
 }
 
