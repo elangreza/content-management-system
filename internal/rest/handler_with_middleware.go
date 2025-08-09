@@ -36,7 +36,8 @@ func NewHandlerWithMiddleware(
 		r.Group(func(rCreateArticle chi.Router) {
 			rCreateArticle.Use(authMiddleware.MustHavePermission(sharevar.ContentWriter.GetPermissions()...))
 			rCreateArticle.Post("/articles", articleHandler.CreateArticleHandler)
-			rCreateArticle.Post("/articles/{articleID}/versions/{articleVersionID}", articleHandler.CreateArticleVersionHandler)
+			rCreateArticle.Put("/articles/{articleID}", articleHandler.CreateNewArticleVersionWithReferenceFromArticleID)
+			rCreateArticle.Put("/articles/{articleID}/versions/{articleVersionID}", articleHandler.CreateNewArticleVersionWithReferenceFromArticleIDAndVersionID)
 		})
 
 		r.Group(func(rDeletePermission chi.Router) {
@@ -57,5 +58,6 @@ func NewHandlerWithMiddleware(
 		r.Get("/articles/{articleID}", articleHandler.GetArticleDetailHandler)
 		r.Get("/articles/{articleID}/versions", articleHandler.GetArticleVersionsHandler)
 		r.Get("/articles/{articleID}/versions/{articleVersionID}", articleHandler.GetArticleVersionWithIDAndArticleID)
+		r.Get("/articles", articleHandler.GetArticlesHandler)
 	})
 }

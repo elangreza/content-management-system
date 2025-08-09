@@ -62,3 +62,13 @@ func NewArticleVersion(articleID int64, title, body string, createdBy uuid.UUID,
 		CreatedBy: createdBy,
 	}
 }
+
+type GetArticlesQueryServiceParams struct {
+	Search      string
+	Status      []constanta.ArticleVersionStatus
+	CreatedBy   []uuid.UUID
+	UpdatedBy   []uuid.UUID
+	OrderClause string
+	Limit       int
+	Page        int
+}

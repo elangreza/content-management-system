@@ -16,20 +16,21 @@ type (
 		CreateArticle(ctx context.Context, article entity.Article) (int64, error)
 		DeleteArticle(ctx context.Context, articleID int64) error
 		GetArticleVersionWithIDAndArticleID(ctx context.Context, articleID int64, articleVersionID int64) (*entity.ArticleVersion, error)
-		UpdateArticleVersion(ctx context.Context, articleID int64, articleVersionID int64, status constanta.ArticleVersionStatus, updatedBy uuid.UUID) error
+		UpdateArticleStatus(ctx context.Context, articleID int64, articleVersionID int64, status constanta.ArticleVersionStatus, updatedBy uuid.UUID) error
 		CreateArticleVersion(ctx context.Context, articleVersion entity.ArticleVersion) (int64, error)
 		GetArticleWithID(ctx context.Context, articleID int64) (*entity.Article, error)
 		GetArticleVersionsWithArticleIDAndStatuses(ctx context.Context, ArticleID int64, status ...constanta.ArticleVersionStatus) ([]entity.ArticleVersion, error)
+		GetArticles(ctx context.Context, req entity.GetArticlesQueryServiceParams) ([]entity.ArticleVersion, error)
 	}
 
 	ArticleService struct {
-		ArticleRepo articleRepo
+		articleRepo articleRepo
 	}
 )
 
 func NewArticleService(articleRepo articleRepo) *ArticleService {
 	return &ArticleService{
-		ArticleRepo: articleRepo,
+		articleRepo: articleRepo,
 	}
 }
 
@@ -41,7 +42,7 @@ func (as *ArticleService) CreateArticle(ctx context.Context, req params.CreateAr
 	}
 
 	article := entity.NewArticle(req.Title, req.Body, userID)
-	id, err := as.ArticleRepo.CreateArticle(ctx, *article)
+	id, err := as.articleRepo.CreateArticle(ctx, *article)
 	if err != nil {
 		return nil, err
 	}
@@ -53,7 +54,7 @@ func (as *ArticleService) CreateArticle(ctx context.Context, req params.CreateAr
 
 // => DELETE /articles/{id}
 func (as *ArticleService) DeleteArticle(ctx context.Context, articleID int64) error {
-	return as.ArticleRepo.DeleteArticle(ctx, articleID)
+	return as.articleRepo.DeleteArticle(ctx, articleID)
 }
 
 // => PUT /articles/{id}/versions/{id}/status
@@ -63,7 +64,7 @@ func (as *ArticleService) UpdateStatusArticle(ctx context.Context, articleID, ar
 		return errors.New("error when parsing userID")
 	}
 
-	articleVersion, err := as.ArticleRepo.GetArticleVersionWithIDAndArticleID(ctx, articleID, articleVersionID)
+	articleVersion, err := as.articleRepo.GetArticleVersionWithIDAndArticleID(ctx, articleID, articleVersionID)
 	if err != nil {
 		return err
 	}
@@ -76,17 +77,69 @@ func (as *ArticleService) UpdateStatusArticle(ctx context.Context, articleID, ar
 		return errs.ValidationError{Message: "status cannot be downgraded"}
 	}
 
-	return as.ArticleRepo.UpdateArticleVersion(ctx, articleID, articleVersionID, reqStatus, userID)
+	return as.articleRepo.UpdateArticleStatus(ctx, articleID, articleVersionID, reqStatus, userID)
 }
 
-// => POST /articles/{id}/versions/{id}
-func (as *ArticleService) CreateArticleVersion(ctx context.Context, articleID int64, articleVersionID int64, req params.CreateArticleVersionRequest) (*params.CreateArticleVersionResponse, error) {
+// => PUT /articles/{articleID}
+func (as *ArticleService) CreateArticleVersionWithReferenceFromArticleID(ctx context.Context, articleID int64, req params.CreateArticleVersionRequest) (*params.CreateArticleVersionResponse, error) {
 	userID, ok := ctx.Value(constanta.LocalUserID).(uuid.UUID)
 	if !ok {
 		return nil, errors.New("error when parsing userID")
 	}
 
-	articleVersion, err := as.ArticleRepo.GetArticleVersionWithIDAndArticleID(ctx, articleID, articleVersionID)
+	article, err := as.articleRepo.GetArticleWithID(ctx, articleID)
+	if err != nil {
+		return nil, err
+	}
+
+	// get the latest version ID if article has a drafted version
+	var articleVersionID int64
+	if article.DraftedVersionID != 0 {
+		articleVersionID = article.DraftedVersionID
+	}
+
+	// if articleVersionID is 0, use the published version ID if it exists
+	if articleVersionID == 0 && article.PublishedVersionID != 0 {
+		articleVersionID = article.PublishedVersionID
+	}
+
+	// if articleVersionID is existing, check if the new version is the same as the current version
+	if articleVersionID != 0 {
+		articleVersion, err := as.articleRepo.GetArticleVersionWithIDAndArticleID(ctx, articleID, articleVersionID)
+		if err != nil {
+			return nil, err
+		}
+
+		if articleVersion.Title == req.Title && articleVersion.Body == req.Body {
+			return nil, errs.ValidationError{Message: "title and body cannot be the same as the current version"}
+		}
+	}
+
+	version := article.VersionSequence + 1
+	newArticleVersion := entity.NewArticleVersion(articleID, req.Title, req.Body, userID, version)
+	newArticleVersionID, err := as.articleRepo.CreateArticleVersion(ctx, *newArticleVersion)
+	if err != nil {
+		return nil, err
+	}
+
+	return &params.CreateArticleVersionResponse{
+		ArticleVersionID: newArticleVersionID,
+	}, nil
+}
+
+// => PUT /articles/{id}/versions/{id}
+func (as *ArticleService) CreateArticleVersionWithReferenceFromArticleIDAindVersionID(ctx context.Context, articleID int64, articleVersionID int64, req params.CreateArticleVersionRequest) (*params.CreateArticleVersionResponse, error) {
+	userID, ok := ctx.Value(constanta.LocalUserID).(uuid.UUID)
+	if !ok {
+		return nil, errors.New("error when parsing userID")
+	}
+
+	article, err := as.articleRepo.GetArticleWithID(ctx, articleID)
+	if err != nil {
+		return nil, err
+	}
+
+	articleVersion, err := as.articleRepo.GetArticleVersionWithIDAndArticleID(ctx, articleID, articleVersionID)
 	if err != nil {
 		return nil, err
 	}
@@ -95,14 +148,9 @@ func (as *ArticleService) CreateArticleVersion(ctx context.Context, articleID in
 		return nil, errs.ValidationError{Message: "title and body cannot be the same as the current version"}
 	}
 
-	article, err := as.ArticleRepo.GetArticleWithID(ctx, articleID)
-	if err != nil {
-		return nil, err
-	}
-
 	version := article.VersionSequence + 1
 	newArticleVersion := entity.NewArticleVersion(articleID, req.Title, req.Body, userID, version)
-	newArticleVersionID, err := as.ArticleRepo.CreateArticleVersion(ctx, *newArticleVersion)
+	newArticleVersionID, err := as.articleRepo.CreateArticleVersion(ctx, *newArticleVersion)
 	if err != nil {
 		return nil, err
 	}
@@ -125,10 +173,12 @@ func (as *ArticleService) CreateArticleVersion(ctx context.Context, articleID in
 // => POST /articles/{id}
 // Pengambilan Detail Versi Artikel Tertentu
 // => GET /articles/{id}/versions/{id}
+// Pengambilan Daftar Versi Artikel
+// => GET /articles/{id}/versions
 
 // => POST /articles/{id}
 func (as *ArticleService) GetArticleWithID(ctx context.Context, articleID int64) (*params.GetArticleDetailResponse, error) {
-	article, err := as.ArticleRepo.GetArticleWithID(ctx, articleID)
+	article, err := as.articleRepo.GetArticleWithID(ctx, articleID)
 	if err != nil {
 		return nil, err
 	}
@@ -142,12 +192,13 @@ func (as *ArticleService) GetArticleWithID(ctx context.Context, articleID int64)
 
 	var articleVersionResponse *params.ArticleVersionResponse
 	if article.DraftedVersionID != 0 && userCanReadDraftedAndArchivedArticle {
-		draftedVersion, err := as.ArticleRepo.GetArticleVersionWithIDAndArticleID(ctx, article.ID, article.DraftedVersionID)
+		draftedVersion, err := as.articleRepo.GetArticleVersionWithIDAndArticleID(ctx, article.ID, article.DraftedVersionID)
 		if err != nil {
 			return nil, err
 		}
 
 		articleVersionResponse = &params.ArticleVersionResponse{
+			ArticleID: draftedVersion.ArticleID,
 			VersionID: draftedVersion.ID,
 			Title:     draftedVersion.Title,
 			Body:      draftedVersion.Body,
@@ -162,12 +213,13 @@ func (as *ArticleService) GetArticleWithID(ctx context.Context, articleID int64)
 
 	var publishedVersionResponse *params.ArticleVersionResponse
 	if article.PublishedVersionID != 0 {
-		publishedVersion, err := as.ArticleRepo.GetArticleVersionWithIDAndArticleID(ctx, article.ID, article.PublishedVersionID)
+		publishedVersion, err := as.articleRepo.GetArticleVersionWithIDAndArticleID(ctx, article.ID, article.PublishedVersionID)
 		if err != nil {
 			return nil, err
 		}
 
 		publishedVersionResponse = &params.ArticleVersionResponse{
+			ArticleID: publishedVersion.ArticleID,
 			VersionID: publishedVersion.ID,
 			Title:     publishedVersion.Title,
 			Body:      publishedVersion.Body,
@@ -201,7 +253,7 @@ func (as *ArticleService) GetArticleWithID(ctx context.Context, articleID int64)
 
 // => GET /articles/{id}/versions/{id}
 func (as *ArticleService) GetArticleVersionWithIDAndArticleID(ctx context.Context, articleID int64, articleVersionID int64) (*params.ArticleVersionResponse, error) {
-	articleVersion, err := as.ArticleRepo.GetArticleVersionWithIDAndArticleID(ctx, articleID, articleVersionID)
+	articleVersion, err := as.articleRepo.GetArticleVersionWithIDAndArticleID(ctx, articleID, articleVersionID)
 	if err != nil {
 		return nil, err
 	}
@@ -216,6 +268,7 @@ func (as *ArticleService) GetArticleVersionWithIDAndArticleID(ctx context.Contex
 	}
 
 	return &params.ArticleVersionResponse{
+		ArticleID: articleVersion.ArticleID,
 		VersionID: articleVersion.ID,
 		Title:     articleVersion.Title,
 		Body:      articleVersion.Body,
@@ -228,7 +281,6 @@ func (as *ArticleService) GetArticleVersionWithIDAndArticleID(ctx context.Contex
 	}, nil
 }
 
-// TODO Pengambilan Daftar Versi Artikel
 // => GET /articles/{id}/versions
 func (as *ArticleService) GetArticleVersions(ctx context.Context, articleID int64) ([]params.ArticleVersionResponse, error) {
 
@@ -243,7 +295,7 @@ func (as *ArticleService) GetArticleVersions(ctx context.Context, articleID int6
 		statuses = append(statuses, constanta.Draft, constanta.Archived)
 	}
 
-	articleVersions, err := as.ArticleRepo.GetArticleVersionsWithArticleIDAndStatuses(ctx, articleID, statuses...)
+	articleVersions, err := as.articleRepo.GetArticleVersionsWithArticleIDAndStatuses(ctx, articleID, statuses...)
 	if err != nil {
 		return nil, err
 	}
@@ -251,6 +303,7 @@ func (as *ArticleService) GetArticleVersions(ctx context.Context, articleID int6
 	res := make([]params.ArticleVersionResponse, len(articleVersions))
 	for i, articleVersion := range articleVersions {
 		res[i] = params.ArticleVersionResponse{
+			ArticleID: articleVersion.ArticleID,
 			VersionID: articleVersion.ID,
 			Title:     articleVersion.Title,
 			Body:      articleVersion.Body,
@@ -268,3 +321,46 @@ func (as *ArticleService) GetArticleVersions(ctx context.Context, articleID int6
 
 // TODO Pengambilan Daftar Artikel
 // => GET /articles
+func (as *ArticleService) GetArticles(ctx context.Context, req params.GetArticlesQueryParams) ([]params.ArticleVersionResponse, error) {
+
+	userCanReadDraftedAndArchivedArticle, ok := ctx.Value(constanta.LocalUserCanReadDraftedAndArchivedArticle).(bool)
+	if !ok {
+		return nil, errors.New("error when parsing user permission")
+	}
+
+	if !userCanReadDraftedAndArchivedArticle {
+		req.Status = []constanta.ArticleVersionStatus{constanta.Published}
+	}
+
+	articleVersions, err := as.articleRepo.GetArticles(ctx, entity.GetArticlesQueryServiceParams{
+		Search:      req.Search,
+		Status:      req.Status,
+		CreatedBy:   req.CreatedBy,
+		UpdatedBy:   req.UpdatedBy,
+		OrderClause: req.GetOrderClause(),
+		Limit:       req.Limit,
+		Page:        req.Page,
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	res := make([]params.ArticleVersionResponse, len(articleVersions))
+	for i, articleVersion := range articleVersions {
+		res[i] = params.ArticleVersionResponse{
+			ArticleID: articleVersion.ArticleID,
+			VersionID: articleVersion.ID,
+			Title:     articleVersion.Title,
+			Body:      articleVersion.Body,
+			Version:   articleVersion.Version,
+			Status:    int8(articleVersion.Status),
+			CreatedBy: articleVersion.CreatedBy,
+			CreatedAt: articleVersion.CreatedAt,
+			UpdatedBy: articleVersion.UpdatedBy,
+			UpdatedAt: articleVersion.UpdatedAt,
+		}
+	}
+
+	return res, nil
+}

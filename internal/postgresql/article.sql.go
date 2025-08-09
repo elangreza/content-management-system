@@ -134,22 +134,33 @@ func (ar *ArticleRepo) GetArticleVersionWithIDAndArticleID(ctx context.Context, 
 
 const (
 	updateArticleVersionWithStatusPublishedIntoArchivedQuery = `UPDATE article_versions
-		SET status=$1, updated_by=$2 WHERE article_id=$3 AND status=$4;`
+		SET status=$1, updated_by=$2 WHERE article_id=$3 AND status=$4 RETURNING id;`
 	updateArticleVersionQuery = `UPDATE article_versions
 		SET status=$1, updated_by=$2 WHERE article_id=$3 AND id=$4;`
 	updateArticlePublishedIdQuery = `UPDATE articles
 		SET published_version_id=$1, updated_by=$2 WHERE id=$3;`
+	updateArticleArchivedIdQuery = `UPDATE articles
+		SET archived_version_id=$1, updated_by=$2 WHERE id=$3;`
 )
 
-func (ar *ArticleRepo) UpdateArticleVersion(ctx context.Context, articleID, articleVersionID int64, status constanta.ArticleVersionStatus, updatedBy uuid.UUID) error {
+func (ar *ArticleRepo) UpdateArticleStatus(ctx context.Context, articleID, articleVersionID int64, status constanta.ArticleVersionStatus, updatedBy uuid.UUID) error {
 	err := runInTx(ctx, ar.db, func(tx *sql.Tx) error {
 		// update article version published into archived with article id
 		if status == constanta.Published {
-			if _, err := tx.ExecContext(ctx, updateArticleVersionWithStatusPublishedIntoArchivedQuery,
+			var archivedVersionID int64
+			if err := tx.QueryRowContext(ctx, updateArticleVersionWithStatusPublishedIntoArchivedQuery,
 				constanta.Archived,
 				updatedBy,
 				articleID,
 				constanta.Published,
+			).Scan(&archivedVersionID); err != nil {
+				return err
+			}
+
+			if _, err := tx.ExecContext(ctx, updateArticleArchivedIdQuery,
+				archivedVersionID,
+				updatedBy,
+				articleID,
 			); err != nil {
 				return err
 			}
@@ -162,6 +173,16 @@ func (ar *ArticleRepo) UpdateArticleVersion(ctx context.Context, articleID, arti
 			articleVersionID,
 		); err != nil {
 			return err
+		}
+
+		if status == constanta.Archived {
+			if _, err := tx.ExecContext(ctx, updateArticleArchivedIdQuery,
+				articleVersionID,
+				updatedBy,
+				articleID,
+			); err != nil {
+				return err
+			}
 		}
 
 		if status == constanta.Published {
@@ -368,4 +389,71 @@ func (ar *ArticleRepo) GetArticleVersionsWithArticleIDAndStatuses(ctx context.Co
 	}
 
 	return versions, rows.Err()
+}
+
+func (ar *ArticleRepo) GetArticles(ctx context.Context, req entity.GetArticlesQueryServiceParams) ([]entity.ArticleVersion, error) {
+	query := `SELECT 
+			id, 
+			article_id, 
+			title, 
+			body, 
+			"version", 
+			status, 
+			created_by, 
+			created_at, 
+			updated_by, 
+			updated_at
+		FROM 
+			article_versions
+		WHERE 
+			(status = ANY($1) OR $1 IS NULL)
+		AND 
+			(created_by = ANY($2) OR $2 IS NULL)
+		AND 
+			(updated_by = ANY($3) OR $3 IS NULL)
+		AND 
+			(title ILIKE '%' || $4 || '%' OR $4 IS NULL)
+		ORDER BY ` + req.OrderClause + ` LIMIT $5 OFFSET $6;`
+
+	offset := req.Limit * (req.Page - 1)
+
+	rows, err := ar.db.QueryContext(ctx,
+		query,
+		pq.Array(req.Status),
+		pq.Array(req.CreatedBy),
+		pq.Array(req.UpdatedBy),
+		req.Search,
+		req.Limit,
+		offset,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var articleVersions []entity.ArticleVersion
+	for rows.Next() {
+		var articleVersion entity.ArticleVersion
+		updatedAt := sql.NullTime{}
+		if err := rows.Scan(
+			&articleVersion.ID,
+			&articleVersion.ArticleID,
+			&articleVersion.Title,
+			&articleVersion.Body,
+			&articleVersion.Version,
+			&articleVersion.Status,
+			&articleVersion.CreatedBy,
+			&articleVersion.CreatedAt,
+			&articleVersion.UpdatedBy,
+			&updatedAt,
+		); err != nil {
+			return nil, err
+		}
+		if updatedAt.Valid {
+			articleVersion.UpdatedAt = &updatedAt.Time
+		}
+		articleVersions = append(articleVersions, articleVersion)
+	}
+
+	return articleVersions, rows.Err()
 }

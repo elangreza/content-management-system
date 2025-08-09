@@ -1,8 +1,11 @@
 package params
 
 import (
+	"strings"
 	"time"
 
+	"github.com/elangreza/content-management-system/internal/constanta"
+	errs "github.com/elangreza/content-management-system/internal/error"
 	"github.com/google/uuid"
 )
 
@@ -27,6 +30,7 @@ type CreateArticleVersionResponse struct {
 }
 
 type ArticleVersionResponse struct {
+	ArticleID int64
 	VersionID int64
 	Title     string
 	Body      string
@@ -48,4 +52,55 @@ type GetArticleDetailResponse struct {
 	CreatedAt time.Time
 	UpdatedBy uuid.UUID
 	UpdatedAt time.Time
+}
+
+type GetArticlesQueryParams struct {
+	// can be searched by title, content
+	Search    string
+	Status    []constanta.ArticleVersionStatus
+	CreatedBy []uuid.UUID
+	UpdatedBy []uuid.UUID
+	// TODO tags
+
+	// Embedding PaginationParams for pagination and sorting
+	PaginationParams
+}
+
+func (pqr *GetArticlesQueryParams) Validate() error {
+
+	if len(pqr.Sorts) == 0 {
+		pqr.Sorts = append(pqr.Sorts, "created_at:desc")
+	}
+
+	for _, v := range pqr.Status {
+		if v < constanta.Draft || v > constanta.Archived {
+			return errs.ValidationError{Message: "not valid status"}
+		}
+	}
+
+	if len(pqr.Status) == 0 {
+		pqr.Status = []constanta.ArticleVersionStatus{
+			constanta.Published,
+		}
+	}
+
+	pqr.PaginationParams.setValidSortKey(
+		"id",
+		"crated_by",
+		"updated_by",
+		"title",
+		"status",
+		"created_at",
+		"updated_at",
+		// TODO implement this
+		"tag_relationship_score",
+	)
+
+	if err := pqr.PaginationParams.Validate(); err != nil {
+		return errs.ValidationError{Message: err.Error()}
+	}
+
+	pqr.Search = strings.TrimSpace(pqr.Search)
+
+	return nil
 }
