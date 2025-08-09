@@ -3,7 +3,7 @@ package service
 import (
 	"context"
 	"log/slog"
-	"slices"
+	"sort"
 	"time"
 
 	"github.com/elangreza/content-management-system/internal/params"
@@ -23,6 +23,7 @@ type (
 		tagUsageCounts    map[string]int
 		tagLastUsed       map[string]time.Time
 		tagTrendingScores map[string]float64
+		tagPairs          [][2]string
 	}
 )
 
@@ -32,10 +33,12 @@ func NewTagService(tagRepo tagRepo) *TagService {
 		tagUsageCounts:    make(map[string]int),
 		tagLastUsed:       make(map[string]time.Time),
 		tagTrendingScores: make(map[string]float64),
+		tagPairs:          make([][2]string, 0),
 	}
 
 	go ts.periodicGetTagUsageCount()
 	go ts.periodicGetTagLastUsedAndCalculateTrendingScore()
+	go ts.periodicGetTagPairs()
 
 	return ts
 }
@@ -68,7 +71,7 @@ func (s *TagService) periodicGetTagUsageCount() {
 }
 
 func (s *TagService) periodicGetTagLastUsedAndCalculateTrendingScore() {
-	time.Sleep(5 * time.Second) // Initial delay to allow periodicGetTagUsageCount to run
+	time.Sleep(3 * time.Second) // Initial delay to allow periodicGetTagUsageCount to run
 
 	// run for the first time immediately
 	tagLastUsed, err := s.getTagLastUsed(context.Background())
@@ -98,6 +101,34 @@ func (s *TagService) periodicGetTagLastUsedAndCalculateTrendingScore() {
 	}
 }
 
+func (s *TagService) periodicGetTagPairs() {
+	time.Sleep(6 * time.Second) // Initial delay to allow periodicGetTagLastUsedAndCalculateTrendingScore to run
+
+	// run for the first time immediately
+	tagPairs, err := s.getTagPairs(context.Background())
+	if err != nil {
+		slog.Error("failed to get tag pairs", "error", err)
+	}
+	if tagPairs != nil {
+		s.tagPairs = tagPairs
+	}
+
+	newTicker := time.NewTicker(10 * time.Second)
+	defer newTicker.Stop()
+	for {
+		select {
+		case <-newTicker.C:
+			tagPairs, err := s.getTagPairs(context.Background())
+			if err != nil {
+				slog.Error("failed to get tag pairs", "error", err)
+			}
+			if tagPairs != nil {
+				s.tagPairs = tagPairs
+			}
+		}
+	}
+}
+
 func (s *TagService) CreateTag(ctx context.Context, tagNames ...string) error {
 	for _, tagName := range tagNames {
 		if err := s.tagRepo.UpsertTags(ctx, tagName); err != nil {
@@ -107,7 +138,7 @@ func (s *TagService) CreateTag(ctx context.Context, tagNames ...string) error {
 	return nil
 }
 
-func (s *TagService) GetTags(ctx context.Context) ([]params.GetTagResponse, error) {
+func (s *TagService) GetTags(ctx context.Context, req params.GetTagsRequest) ([]params.GetTagResponse, error) {
 	tags, err := s.tagRepo.GetTags(ctx)
 	if err != nil {
 		return nil, err
@@ -122,13 +153,25 @@ func (s *TagService) GetTags(ctx context.Context) ([]params.GetTagResponse, erro
 		})
 	}
 
-	slices.SortFunc(responses, func(a, b params.GetTagResponse) int {
-		if a.UsageCount == b.UsageCount {
-			return 0
-		} else if a.UsageCount > b.UsageCount {
-			return -1
+	sort.Slice(responses, func(i, j int) bool {
+		switch req.SortValue {
+		case "usage_count":
+			if req.Direction == "asc" {
+				return responses[i].UsageCount < responses[j].UsageCount
+			}
+			return responses[i].UsageCount > responses[j].UsageCount
+		case "trending_score":
+			if req.Direction == "asc" {
+				return responses[i].TrendingScore < responses[j].TrendingScore
+			}
+			return responses[i].TrendingScore > responses[j].TrendingScore
+		case "name":
+			if req.Direction == "asc" {
+				return responses[i].Name < responses[j].Name
+			}
+			return responses[i].Name > responses[j].Name
 		}
-		return 1
+		return false
 	})
 
 	return responses, nil
@@ -158,6 +201,29 @@ func (s *TagService) getTagLastUsed(ctx context.Context) (map[string]time.Time, 
 	}
 
 	return counts, nil
+}
+
+func (s *TagService) getTagPairs(ctx context.Context) ([][2]string, error) {
+	// timeout must be less than the periodic ticker duration
+	ctx, cancel := context.WithTimeout(ctx, 8*time.Second)
+	defer cancel()
+
+	tags, err := s.GetTags(ctx, params.GetTagsRequest{
+		SortValue: "name",
+		Direction: "asc",
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	var pairs [][2]string
+	for i := 0; i < len(tags); i++ {
+		for j := i + 1; j < len(tags); j++ {
+			pairs = append(pairs, [2]string{tags[i].Name, tags[j].Name})
+		}
+	}
+
+	return pairs, nil
 }
 
 func (s *TagService) calculateTrendingScore() {

@@ -9,3 +9,8 @@ type GetTagResponse struct {
 	UsageCount    int     `json:"usage_count"`
 	TrendingScore float64 `json:"trending_score"`
 }
+
+type GetTagsRequest struct {
+	SortValue string
+	Direction string
+}
