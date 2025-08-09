@@ -199,7 +199,7 @@ func (as *ArticleService) GetArticleWithID(ctx context.Context, articleID int64)
 
 		articleVersionResponse = &params.ArticleVersionResponse{
 			ArticleID: draftedVersion.ArticleID,
-			VersionID: draftedVersion.ID,
+			VersionID: draftedVersion.ArticleVersionID,
 			Title:     draftedVersion.Title,
 			Body:      draftedVersion.Body,
 			Version:   draftedVersion.Version,
@@ -220,7 +220,7 @@ func (as *ArticleService) GetArticleWithID(ctx context.Context, articleID int64)
 
 		publishedVersionResponse = &params.ArticleVersionResponse{
 			ArticleID: publishedVersion.ArticleID,
-			VersionID: publishedVersion.ID,
+			VersionID: publishedVersion.ArticleVersionID,
 			Title:     publishedVersion.Title,
 			Body:      publishedVersion.Body,
 			Version:   publishedVersion.Version,
@@ -269,7 +269,7 @@ func (as *ArticleService) GetArticleVersionWithIDAndArticleID(ctx context.Contex
 
 	return &params.ArticleVersionResponse{
 		ArticleID: articleVersion.ArticleID,
-		VersionID: articleVersion.ID,
+		VersionID: articleVersion.ArticleVersionID,
 		Title:     articleVersion.Title,
 		Body:      articleVersion.Body,
 		Version:   articleVersion.Version,
@@ -304,7 +304,7 @@ func (as *ArticleService) GetArticleVersions(ctx context.Context, articleID int6
 	for i, articleVersion := range articleVersions {
 		res[i] = params.ArticleVersionResponse{
 			ArticleID: articleVersion.ArticleID,
-			VersionID: articleVersion.ID,
+			VersionID: articleVersion.ArticleVersionID,
 			Title:     articleVersion.Title,
 			Body:      articleVersion.Body,
 			Version:   articleVersion.Version,
@@ -350,7 +350,7 @@ func (as *ArticleService) GetArticles(ctx context.Context, req params.GetArticle
 	for i, articleVersion := range articleVersions {
 		res[i] = params.ArticleVersionResponse{
 			ArticleID: articleVersion.ArticleID,
-			VersionID: articleVersion.ID,
+			VersionID: articleVersion.ArticleVersionID,
 			Title:     articleVersion.Title,
 			Body:      articleVersion.Body,
 			Version:   articleVersion.Version,

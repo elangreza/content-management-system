@@ -3,6 +3,8 @@ package postgresql
 import (
 	"context"
 	"database/sql"
+	"fmt"
+	"strings"
 
 	"github.com/elangreza/content-management-system/internal/constanta"
 	"github.com/elangreza/content-management-system/internal/entity"
@@ -111,7 +113,7 @@ func (ar *ArticleRepo) GetArticleVersionWithIDAndArticleID(ctx context.Context, 
 	articleVersion := &entity.ArticleVersion{}
 	updatedAt := sql.NullTime{}
 	err := ar.db.QueryRowContext(ctx, getArticleVersionWithIDAndArticleIDQuery, articleID, articleVersionID).Scan(
-		&articleVersion.ID,
+		&articleVersion.ArticleVersionID,
 		&articleVersion.Title,
 		&articleVersion.Body,
 		&articleVersion.Version,
@@ -325,7 +327,7 @@ func (ar *ArticleRepo) GetArticleVersionWithID(ctx context.Context, ID int64) (*
 	articleVersion := &entity.ArticleVersion{}
 	updatedAt := sql.NullTime{}
 	err := ar.db.QueryRowContext(ctx, getArticleWithIDQuery, ID).Scan(
-		&articleVersion.ID,
+		&articleVersion.ArticleVersionID,
 		&articleVersion.ArticleID,
 		&articleVersion.Title,
 		&articleVersion.Body,
@@ -369,7 +371,7 @@ func (ar *ArticleRepo) GetArticleVersionsWithArticleIDAndStatuses(ctx context.Co
 		var version entity.ArticleVersion
 		updatedAt := sql.NullTime{}
 		if err := rows.Scan(
-			&version.ID,
+			&version.ArticleVersionID,
 			&version.ArticleID,
 			&version.Title,
 			&version.Body,
@@ -391,35 +393,55 @@ func (ar *ArticleRepo) GetArticleVersionsWithArticleIDAndStatuses(ctx context.Co
 	return versions, rows.Err()
 }
 
+func getArticleQueryByStatus(status constanta.ArticleVersionStatus) string {
+	column := "published_version_id"
+	switch status {
+	case constanta.Draft:
+		column = "drafted_version_id"
+	case constanta.Archived:
+		column = "archived_version_id"
+	}
+	q := `SELECT
+			av.id as article_version_id, 
+			av.article_id as article_id, 
+			av.title as title, 
+			av.body as body, 
+			av.version as "version", 
+			av.status as status, 
+			av.created_by as created_by, 
+			av.created_at as created_at, 
+			av.updated_by as updated_by, 
+			av.updated_at as updated_at
+		FROM public.articles a
+		JOIN public.article_versions av ON a.%s = av.id WHERE a.%s IS NOT NULL AND av.status = %d`
+
+	return fmt.Sprintf(q, column, column, int8(status))
+}
+
 func (ar *ArticleRepo) GetArticles(ctx context.Context, req entity.GetArticlesQueryServiceParams) ([]entity.ArticleVersion, error) {
-	query := `SELECT 
-			id, 
-			article_id, 
-			title, 
-			body, 
-			"version", 
-			status, 
-			created_by, 
-			created_at, 
-			updated_by, 
-			updated_at
-		FROM 
-			article_versions
-		WHERE 
-			(status = ANY($1) OR $1 IS NULL)
+	unionQuery := []string{}
+	for i, v := range req.Status {
+		q := getArticleQueryByStatus(v)
+		fmt.Println(i, q)
+		unionQuery = append(unionQuery, q)
+	}
+
+	query := "select * from (" + strings.Join(unionQuery, " UNION ALL ") + ")" +
+		` WHERE
+			(created_by = ANY($1) OR $1 IS NULL)
 		AND 
-			(created_by = ANY($2) OR $2 IS NULL)
+			(updated_by = ANY($2) OR $2 IS NULL)
 		AND 
-			(updated_by = ANY($3) OR $3 IS NULL)
-		AND 
-			(title ILIKE '%' || $4 || '%' OR $4 IS NULL)
-		ORDER BY ` + req.OrderClause + ` LIMIT $5 OFFSET $6;`
+			(title ILIKE '%' || $3 || '%' OR $3 IS NULL)
+		ORDER BY ` + req.OrderClause + ` LIMIT $4 OFFSET $5;`
+
+	fmt.Println(query)
 
 	offset := req.Limit * (req.Page - 1)
 
 	rows, err := ar.db.QueryContext(ctx,
 		query,
-		pq.Array(req.Status),
+		// pq.Array(req.Status),
 		pq.Array(req.CreatedBy),
 		pq.Array(req.UpdatedBy),
 		req.Search,
@@ -436,7 +458,7 @@ func (ar *ArticleRepo) GetArticles(ctx context.Context, req entity.GetArticlesQu
 		var articleVersion entity.ArticleVersion
 		updatedAt := sql.NullTime{}
 		if err := rows.Scan(
-			&articleVersion.ID,
+			&articleVersion.ArticleVersionID,
 			&articleVersion.ArticleID,
 			&articleVersion.Title,
 			&articleVersion.Body,

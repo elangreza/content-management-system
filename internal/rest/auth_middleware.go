@@ -44,7 +44,7 @@ func (am *AuthMiddleware) MustAuthMiddleware() func(next http.Handler) http.Hand
 
 			userID, err := am.svc.ProcessToken(r.Context(), token)
 			if err != nil {
-				sendErrorResponse(w, http.StatusUnauthorized, errors.New("cannot unauthorize this user"))
+				sendErrorResponse(w, http.StatusUnauthorized, errors.New("unauthorize user"))
 				return
 			}
 
@@ -108,7 +108,7 @@ func (am *AuthMiddleware) OptionalAuthMiddleware() func(next http.Handler) http.
 
 				userID, err := am.svc.ProcessToken(r.Context(), token)
 				if err != nil {
-					sendErrorResponse(w, http.StatusUnauthorized, errors.New("cannot unauthorize this user"))
+					sendErrorResponse(w, http.StatusUnauthorized, errors.New("unauthorize user"))
 					return
 				}
 

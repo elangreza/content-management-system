@@ -22,12 +22,12 @@ type (
 	}
 
 	ArticleVersion struct {
-		ID        int64
-		ArticleID int64
-		Title     string
-		Body      string
-		Version   int64
-		Status    constanta.ArticleVersionStatus
+		ArticleVersionID int64
+		ArticleID        int64
+		Title            string
+		Body             string
+		Version          int64
+		Status           constanta.ArticleVersionStatus
 
 		CreatedBy uuid.UUID
 		CreatedAt time.Time

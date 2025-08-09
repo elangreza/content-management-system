@@ -85,11 +85,13 @@ func (pqr *GetArticlesQueryParams) Validate() error {
 	}
 
 	pqr.PaginationParams.setValidSortKey(
-		"id",
+		"article_id",
+		"article_version_id",
 		"crated_by",
 		"updated_by",
 		"title",
 		"status",
+		"version",
 		"created_at",
 		"updated_at",
 		// TODO implement this
