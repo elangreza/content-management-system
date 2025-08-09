@@ -125,7 +125,7 @@ func (ar *ArticleRepo) DeleteArticle(ctx context.Context, articleID int64) error
 }
 
 const (
-	getArticleVersionWithIDAndArticleIDQuery = `SELECT id, title, body, "version", status, created_by, created_at, updated_by, updated_at
+	getArticleVersionWithIDAndArticleIDQuery = `SELECT id, article_id, title, body, "version", status, created_by, created_at, updated_by, updated_at
 		FROM article_versions WHERE article_id=$1 AND id=$2;`
 )
 
@@ -135,6 +135,7 @@ func (ar *ArticleRepo) GetArticleVersionWithIDAndArticleID(ctx context.Context, 
 	updatedAt := sql.NullTime{}
 	err := ar.db.QueryRowContext(ctx, getArticleVersionWithIDAndArticleIDQuery, articleID, articleVersionID).Scan(
 		&articleVersion.ArticleVersionID,
+		&articleVersion.ArticleID,
 		&articleVersion.Title,
 		&articleVersion.Body,
 		&articleVersion.Version,
@@ -157,7 +158,7 @@ func (ar *ArticleRepo) GetArticleVersionWithIDAndArticleID(ctx context.Context, 
 
 const (
 	updateArticleVersionWithStatusPublishedIntoArchivedQuery = `UPDATE article_versions
-		SET status=$1, updated_by=$2 WHERE article_id=$3 AND status=$4 RETURNING id;`
+		SET status=$1, updated_by=$2 WHERE article_id=$3 AND status=$4;`
 	updateArticleVersionQuery = `UPDATE article_versions
 		SET status=$1, updated_by=$2 WHERE article_id=$3 AND id=$4;`
 	updateArticlePublishedIdQuery = `UPDATE articles
@@ -170,22 +171,43 @@ func (ar *ArticleRepo) UpdateArticleStatus(ctx context.Context, articleID, artic
 	err := runInTx(ctx, ar.db, func(tx *sql.Tx) error {
 		// update article version published into archived with article id
 		if status == constanta.Published {
-			var archivedVersionID int64
-			if err := tx.QueryRowContext(ctx, updateArticleVersionWithStatusPublishedIntoArchivedQuery,
-				constanta.Archived,
-				updatedBy,
-				articleID,
-				constanta.Published,
-			).Scan(&archivedVersionID); err != nil {
+
+			row, err := tx.QueryContext(ctx, "SELECT id FROM article_versions WHERE article_id = $1 AND status = $2 LIMIT 1", articleID, constanta.Published)
+			if err != nil {
+				return err
+			}
+			defer row.Close()
+			var existingPublishedVersionID int64
+			for row.Next() {
+				err := row.Scan(&existingPublishedVersionID)
+				if err != nil {
+					return err
+				}
+			}
+
+			if err := row.Err(); err != nil {
 				return err
 			}
 
-			if _, err := tx.ExecContext(ctx, updateArticleArchivedIdQuery,
-				archivedVersionID,
-				updatedBy,
-				articleID,
-			); err != nil {
-				return err
+			if existingPublishedVersionID != 0 {
+				_, err = tx.ExecContext(ctx, updateArticleVersionWithStatusPublishedIntoArchivedQuery,
+					constanta.Archived,
+					updatedBy,
+					articleID,
+					constanta.Published,
+				)
+				if err != nil {
+					return err
+				}
+
+				// update existing published version id to archived version id
+				if _, err := tx.ExecContext(ctx, updateArticleArchivedIdQuery,
+					existingPublishedVersionID,
+					updatedBy,
+					articleID,
+				); err != nil {
+					return err
+				}
 			}
 		}
 

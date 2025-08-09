@@ -11,6 +11,7 @@ func NewHandlerWithMiddleware(
 	profileService ProfileService,
 	authService AuthService,
 	articleService ArticleService,
+	tagService TagService,
 ) {
 
 	authMiddleware := AuthMiddleware{
@@ -29,6 +30,10 @@ func NewHandlerWithMiddleware(
 		svc: articleService,
 	}
 
+	tagHandler := TagHandler{
+		svc: tagService,
+	}
+
 	publicRoute.Group(func(r chi.Router) {
 		r.Use(authMiddleware.MustAuthMiddleware())
 		r.Get("/profile", profileHandler.ProfileUserHandler)
@@ -38,6 +43,7 @@ func NewHandlerWithMiddleware(
 			rCreateArticle.Post("/articles", articleHandler.CreateArticleHandler)
 			rCreateArticle.Put("/articles/{articleID}", articleHandler.CreateNewArticleVersionWithReferenceFromArticleID)
 			rCreateArticle.Put("/articles/{articleID}/versions/{articleVersionID}", articleHandler.CreateNewArticleVersionWithReferenceFromArticleIDAndVersionID)
+			rCreateArticle.Post("/tags", tagHandler.CreateTagHandler)
 		})
 
 		r.Group(func(rDeletePermission chi.Router) {
@@ -49,7 +55,6 @@ func NewHandlerWithMiddleware(
 			rUpdateStatusPermission.Use(authMiddleware.MustHavePermission(constanta.UpdateStatusArticle))
 			rUpdateStatusPermission.Put("/articles/{articleID}/versions/{articleVersionID}/status", articleHandler.UpdateArticleStatusHandler)
 		})
-
 	})
 
 	publicRoute.Group(func(r chi.Router) {
@@ -59,5 +64,6 @@ func NewHandlerWithMiddleware(
 		r.Get("/articles/{articleID}/versions", articleHandler.GetArticleVersionsHandler)
 		r.Get("/articles/{articleID}/versions/{articleVersionID}", articleHandler.GetArticleVersionWithIDAndArticleID)
 		r.Get("/articles", articleHandler.GetArticlesHandler)
+		r.Get("/tags", tagHandler.GetTagsHandler)
 	})
 }

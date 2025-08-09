@@ -17,6 +17,7 @@ import (
 	"github.com/elangreza/content-management-system/internal/rest"
 	"github.com/elangreza/content-management-system/internal/service"
 	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 	_ "github.com/lib/pq"
 )
 
@@ -32,19 +33,23 @@ func main() {
 
 	c := chi.NewRouter()
 
+	c.Use(middleware.Recoverer)
+	c.Use(middleware.Logger)
+
 	// repositories
 	ur := postgresql.NewUserRepo(dn)
-	tr := postgresql.NewTokenRepo(dn)
+	tokenRepo := postgresql.NewTokenRepo(dn)
 	ar := postgresql.NewArticleRepo(dn)
+	tagRepo := postgresql.NewTagRepo(dn)
 
 	// services
-	authService := service.NewAuthService(ur, tr)
+	authService := service.NewAuthService(ur, tokenRepo)
 	profileService := service.NewProfileService(ur)
 	articleService := service.NewArticleService(ar)
+	tagService := service.NewTagService(tagRepo)
 
 	rest.NewAuthRouter(c, authService)
-	// private routes
-	rest.NewHandlerWithMiddleware(c, profileService, authService, articleService)
+	rest.NewHandlerWithMiddleware(c, profileService, authService, articleService, tagService)
 
 	srv := &http.Server{
 		Addr:           fmt.Sprintf(":%s", cfg.HTTP_PORT),
