@@ -36,15 +36,13 @@ const (
 )
 
 // CreateArticle implements ArticleRepo.
-func (ar *ArticleRepo) CreateArticle(ctx context.Context, article entity.Article, articleVersion entity.ArticleVersion) (int64, error) {
-	var articleID int64
+func (ar *ArticleRepo) CreateArticle(ctx context.Context, article entity.Article, articleVersion entity.ArticleVersion) (int64, int64, error) {
+	var articleID, articleVersionID int64
 	err := runInTx(ctx, ar.db, func(tx *sql.Tx) error {
 		if err := tx.QueryRowContext(ctx, createArticleQuery, article.CreatedBy).Scan(&articleID); err != nil {
-			fmt.Println(1)
 			return err
 		}
 
-		articleVersionID := 0
 		if err := tx.QueryRowContext(ctx, createArticleVersionQuery,
 			articleID,
 			articleVersion.Title,
@@ -53,7 +51,6 @@ func (ar *ArticleRepo) CreateArticle(ctx context.Context, article entity.Article
 			articleVersion.Status,
 			articleVersion.CreatedBy,
 		).Scan(&articleVersionID); err != nil {
-			fmt.Println(2)
 			return err
 		}
 
@@ -63,13 +60,11 @@ func (ar *ArticleRepo) CreateArticle(ctx context.Context, article entity.Article
 			for _, tag := range articleVersion.Tags {
 				_, err := tx.ExecContext(ctx, upsertTagQuery, tag)
 				if err != nil {
-					fmt.Println(3)
 					return err
 				}
 
 				_, err = tx.ExecContext(ctx, createArticleVersionTagsQuery, articleVersionID, tag)
 				if err != nil {
-					fmt.Println(4)
 					return err
 				}
 			}
@@ -81,17 +76,16 @@ func (ar *ArticleRepo) CreateArticle(ctx context.Context, article entity.Article
 			article.VersionSequence,
 			articleID,
 		); err != nil {
-			fmt.Println(5)
 			return err
 		}
 
 		return nil
 	})
 	if err != nil {
-		return 0, err
+		return 0, 0, err
 	}
 
-	return articleID, nil
+	return articleID, articleVersionID, nil
 }
 
 const (
@@ -226,6 +220,10 @@ func (ar *ArticleRepo) UpdateArticleStatus(ctx context.Context, articleID, artic
 				updatedBy,
 				articleID,
 			); err != nil {
+				return err
+			}
+
+			if _, err := tx.ExecContext(ctx, "UPDATE articles SET published_version_id=NULL WHERE id=$1", articleID); err != nil {
 				return err
 			}
 		}
@@ -489,9 +487,8 @@ func getArticleQueryByStatus(status constanta.ArticleVersionStatus) string {
 
 func (ar *ArticleRepo) GetArticles(ctx context.Context, req entity.GetArticlesQueryServiceParams) ([]entity.ArticleVersion, error) {
 	unionQuery := []string{}
-	for i, v := range req.Status {
+	for _, v := range req.Status {
 		q := getArticleQueryByStatus(v)
-		fmt.Println(i, q)
 		unionQuery = append(unionQuery, q)
 	}
 
@@ -503,8 +500,6 @@ func (ar *ArticleRepo) GetArticles(ctx context.Context, req entity.GetArticlesQu
 		AND 
 			(title ILIKE '%' || $3 || '%' OR $3 IS NULL)
 		ORDER BY ` + req.OrderClause + ` LIMIT $4 OFFSET $5;`
-
-	fmt.Println(query)
 
 	offset := req.Limit * (req.Page - 1)
 
@@ -549,21 +544,24 @@ func (ar *ArticleRepo) GetArticles(ctx context.Context, req entity.GetArticlesQu
 	return articleVersions, rows.Err()
 }
 
-func (ar *ArticleRepo) GetRawTagsWithArticleVersionID(ctx context.Context, articleVersionID int64) ([]string, error) {
-	query := `SELECT tag_name FROM article_version_tags WHERE article_version_id = $1 ORDER BY tag_name asc;`
-	rows, err := ar.db.QueryContext(ctx, query, articleVersionID)
+const (
+	getTagsWithArticleVersionIDQuery = `SELECT tag_name FROM article_version_tags WHERE article_version_id = $1 ORDER BY tag_name asc;`
+)
+
+func (ar *ArticleRepo) GetTagsWithArticleVersionID(ctx context.Context, articleVersionID int64) ([]entity.Tag, error) {
+	rows, err := ar.db.QueryContext(ctx, getTagsWithArticleVersionIDQuery, articleVersionID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	var tags []string
+	var tags []entity.Tag
 	for rows.Next() {
 		var tag string
 		if err := rows.Scan(&tag); err != nil {
 			return nil, err
 		}
-		tags = append(tags, tag)
+		tags = append(tags, entity.Tag{Name: tag})
 	}
 
 	if err := rows.Err(); err != nil {
@@ -571,4 +569,14 @@ func (ar *ArticleRepo) GetRawTagsWithArticleVersionID(ctx context.Context, artic
 	}
 
 	return tags, nil
+}
+
+func (ar *ArticleRepo) UpdateArticleVersionRelationshipScore(ctx context.Context, articleVersionID int64, relationshipScore float64) error {
+	query := `UPDATE article_versions SET relationship_score = $1 WHERE id = $2;`
+	_, err := ar.db.ExecContext(ctx, query, relationshipScore, articleVersionID)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

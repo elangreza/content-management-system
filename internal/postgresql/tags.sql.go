@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/elangreza/content-management-system/internal/constanta"
+	"github.com/elangreza/content-management-system/internal/entity"
 )
 
 type (
@@ -119,4 +120,71 @@ func (u *TagsRepo) GetTagLastUsage(ctx context.Context) (map[string]time.Time, e
 	}
 
 	return counts, nil
+}
+
+func (u *TagsRepo) GetTagUsage(ctx context.Context) (map[string]entity.TagUsage, error) {
+	query := `
+		SELECT t.name, COUNT(avt.tag_name) as usage_count, MAX(av.created_at) AS last_used
+		FROM tags t
+		LEFT JOIN article_version_tags avt ON t.name = avt.tag_name 
+		LEFT JOIN article_versions av ON avt.article_version_id = av.id
+		WHERE av.status = $1
+		GROUP BY t.name
+	`
+
+	rows, err := u.db.QueryContext(ctx, query, constanta.Published)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	counts := make(map[string]entity.TagUsage)
+	for rows.Next() {
+		var name string
+		var usageCount int
+		var lastUsed time.Time
+		if err := rows.Scan(&name, &usageCount, &lastUsed); err != nil {
+			return nil, err
+		}
+		counts[name] = entity.TagUsage{
+			Count:    usageCount,
+			LastUsed: lastUsed,
+		}
+	}
+
+	return counts, nil
+}
+
+const (
+	getArticleTagsQuery = `SELECT 
+			avt.tag_name, 
+			avt.article_version_id 
+		FROM 
+			article_version_tags avt
+		LEFT JOIN 
+			article_versions av ON avt.article_version_id = av.id 
+		WHERE 
+			av.status = $1`
+)
+
+func (u *TagsRepo) GetArticleTags(ctx context.Context, status constanta.ArticleVersionStatus) ([]entity.ArticleVersionTag, error) {
+	rows, err := u.db.QueryContext(ctx, getArticleTagsQuery, status)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var tags []entity.ArticleVersionTag
+	for rows.Next() {
+		var tag entity.ArticleVersionTag
+		if err := rows.Scan(
+			&tag.TagName,
+			&tag.ArticleVersionID,
+		); err != nil {
+			return nil, err
+		}
+		tags = append(tags, tag)
+	}
+
+	return tags, nil
 }

@@ -37,16 +37,16 @@ func main() {
 	c.Use(middleware.Logger)
 
 	// repositories
-	ur := postgresql.NewUserRepo(dn)
+	userRepo := postgresql.NewUserRepo(dn)
 	tokenRepo := postgresql.NewTokenRepo(dn)
-	ar := postgresql.NewArticleRepo(dn)
+	articleRepo := postgresql.NewArticleRepo(dn)
 	tagRepo := postgresql.NewTagRepo(dn)
 
 	// services
-	authService := service.NewAuthService(ur, tokenRepo)
-	profileService := service.NewProfileService(ur)
-	articleService := service.NewArticleService(ar)
-	tagService := service.NewTagService(tagRepo)
+	authService := service.NewAuthService(userRepo, tokenRepo)
+	profileService := service.NewProfileService(userRepo)
+	tagService := service.NewTagService(articleRepo, tagRepo)
+	articleService := service.NewArticleService(articleRepo, tagService)
 
 	rest.NewAuthRouter(c, authService)
 	rest.NewHandlerWithMiddleware(c, profileService, authService, articleService, tagService)

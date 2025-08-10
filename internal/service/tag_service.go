@@ -3,9 +3,12 @@ package service
 import (
 	"context"
 	"log/slog"
+	"math"
 	"sort"
 	"time"
 
+	"github.com/elangreza/content-management-system/internal/constanta"
+	"github.com/elangreza/content-management-system/internal/entity"
 	"github.com/elangreza/content-management-system/internal/params"
 )
 
@@ -16,126 +19,124 @@ type (
 		GetTags(ctx context.Context) ([]string, error)
 		GetTagUsageCounts(ctx context.Context) (map[string]int, error)
 		GetTagLastUsage(ctx context.Context) (map[string]time.Time, error)
+		GetTagUsage(ctx context.Context) (map[string]entity.TagUsage, error)
+		GetArticleTags(ctx context.Context, status constanta.ArticleVersionStatus) ([]entity.ArticleVersionTag, error)
+	}
+
+	TagActionTrigger struct {
+		Name    TagServiceAction
+		Payload interface{}
 	}
 
 	TagService struct {
-		tagRepo           tagRepo
-		tagUsageCounts    map[string]int
-		tagLastUsed       map[string]time.Time
-		tagTrendingScores map[string]float64
-		tagPairs          [][2]string
+		articleRepo      articleRepo
+		tagRepo          tagRepo
+		tagUsage         *SafeMap[string, entity.TagUsage]
+		tagPairFrequency *SafeMap[[2]string, int]
+		actionTrigger    chan TagActionTrigger
 	}
 )
 
-func NewTagService(tagRepo tagRepo) *TagService {
+type TagServiceAction int8
+
+const (
+	// trigger when article version is published or archived
+	calculateTagUsageAndPairFrequency TagServiceAction = iota
+	// trigger when article version is drafted or published
+	calculateArticleTagRelation
+)
+
+func NewTagService(articleRepo articleRepo, tagRepo tagRepo) *TagService {
+	tagUsage := NewSafeMap[string, entity.TagUsage]()
+	tagPairFrequency := NewSafeMap[[2]string, int]()
 	ts := &TagService{
-		tagRepo:           tagRepo,
-		tagUsageCounts:    make(map[string]int),
-		tagLastUsed:       make(map[string]time.Time),
-		tagTrendingScores: make(map[string]float64),
-		tagPairs:          make([][2]string, 0),
+		articleRepo:      articleRepo,
+		tagRepo:          tagRepo,
+		tagUsage:         tagUsage,
+		tagPairFrequency: tagPairFrequency,
+		actionTrigger:    make(chan TagActionTrigger),
 	}
 
-	go ts.periodicGetTagUsageCount()
-	go ts.periodicGetTagLastUsedAndCalculateTrendingScore()
-	go ts.periodicGetTagPairs()
+	go ts.tagRoutine()
 
 	return ts
 }
 
-func (s *TagService) periodicGetTagUsageCount() {
-
+func (s *TagService) tagRoutine() {
 	// run for the first time immediately
-	counts, err := s.getTagUsageCounts(context.Background())
+	s.calculateTagUsageAndPairFrequency()
+
+	newTicker := time.NewTicker(10 * time.Second)
+	defer newTicker.Stop()
+	for {
+		select {
+		case <-newTicker.C:
+			// slog.Info("ticker triggered")
+			s.calculateTagUsageAndPairFrequency()
+		case action := <-s.actionTrigger:
+			switch action.Name {
+			case calculateTagUsageAndPairFrequency:
+				slog.Info("calculateTagUsageAndPairFrequency")
+				s.calculateTagUsageAndPairFrequency()
+			case calculateArticleTagRelation:
+				slog.Info("calculateArticleTagRelation")
+				s.calculateTagUsageAndPairFrequency()
+				payload, ok := action.Payload.(entity.CalculateArticleVersionTagRelationShipScorePayload)
+				if !ok {
+					slog.Error("invalid payload for calculateArticleTagRelation action")
+					continue
+				}
+				score := s.calculateArticleVersionTagRelationShipScore(payload.Tags)
+				if err := s.updateArticleVersionRelationshipScore(score, payload.ArticleVersionID); err != nil {
+					slog.Error("failed to update relationship score", "error", err)
+					continue
+				}
+				slog.Info("successfully updated relationship score", "score", score, "article_version_id", payload.ArticleVersionID)
+			default:
+				slog.Error("unknown action", "action", action.Name)
+			}
+		}
+	}
+}
+
+func (s *TagService) updateArticleVersionRelationshipScore(score float64, articleVersionID int64) error {
+	if err := s.articleRepo.UpdateArticleVersionRelationshipScore(context.Background(), articleVersionID, score); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *TagService) calculateTagUsageAndPairFrequency() {
+	var err error
+	s.tagUsage, err = s.getTagUsage(context.Background())
 	if err != nil {
 		slog.Error("failed to get tag usage counts", "error", err)
 	}
-	if counts != nil {
-		s.tagUsageCounts = counts
-	}
-
-	newTicker := time.NewTicker(10 * time.Second)
-	defer newTicker.Stop()
-	for {
-		select {
-		case <-newTicker.C:
-			counts, err := s.getTagUsageCounts(context.Background())
-			if err != nil {
-				slog.Error("failed to get tag usage counts", "error", err)
-			}
-			if counts != nil {
-				s.tagUsageCounts = counts
-			}
-		}
-	}
-}
-
-func (s *TagService) periodicGetTagLastUsedAndCalculateTrendingScore() {
-	time.Sleep(3 * time.Second) // Initial delay to allow periodicGetTagUsageCount to run
-
-	// run for the first time immediately
-	tagLastUsed, err := s.getTagLastUsed(context.Background())
-	if err != nil {
-		slog.Error("failed to get tag last used", "error", err)
-	}
-	if tagLastUsed != nil {
-		s.tagLastUsed = tagLastUsed
-	}
-	s.calculateTrendingScore()
-
-	newTicker := time.NewTicker(10 * time.Second)
-	defer newTicker.Stop()
-	for {
-		select {
-		case <-newTicker.C:
-			tagLastUsed, err := s.getTagLastUsed(context.Background())
-			if err != nil {
-				slog.Error("failed to get tag last used", "error", err)
-			}
-			if tagLastUsed != nil {
-				s.tagLastUsed = tagLastUsed
-			}
-
-			s.calculateTrendingScore()
-		}
-	}
-}
-
-func (s *TagService) periodicGetTagPairs() {
-	time.Sleep(6 * time.Second) // Initial delay to allow periodicGetTagLastUsedAndCalculateTrendingScore to run
-
-	// run for the first time immediately
-	tagPairs, err := s.getTagPairs(context.Background())
+	s.tagPairFrequency, err = s.getTagPairFrequency(context.Background())
 	if err != nil {
 		slog.Error("failed to get tag pairs", "error", err)
-	}
-	if tagPairs != nil {
-		s.tagPairs = tagPairs
-	}
-
-	newTicker := time.NewTicker(10 * time.Second)
-	defer newTicker.Stop()
-	for {
-		select {
-		case <-newTicker.C:
-			tagPairs, err := s.getTagPairs(context.Background())
-			if err != nil {
-				slog.Error("failed to get tag pairs", "error", err)
-			}
-			if tagPairs != nil {
-				s.tagPairs = tagPairs
-			}
-		}
 	}
 }
 
 func (s *TagService) CreateTag(ctx context.Context, tagNames ...string) error {
-	for _, tagName := range tagNames {
-		if err := s.tagRepo.UpsertTags(ctx, tagName); err != nil {
-			return err
-		}
+	if err := s.tagRepo.UpsertTags(ctx, tagNames...); err != nil {
+		return err
 	}
+
+	// recalculate tag usage and pair frequency
+	s.CreateTagTrigger(calculateTagUsageAndPairFrequency, nil)
+
 	return nil
+}
+
+func (s *TagService) CreateTagTrigger(name TagServiceAction, payload any) {
+	go func() {
+		s.actionTrigger <- TagActionTrigger{
+			Name:    name,
+			Payload: payload,
+		}
+	}()
 }
 
 func (s *TagService) GetTags(ctx context.Context, req params.GetTagsRequest) ([]params.GetTagResponse, error) {
@@ -146,11 +147,17 @@ func (s *TagService) GetTags(ctx context.Context, req params.GetTagsRequest) ([]
 
 	var responses []params.GetTagResponse
 	for _, tag := range tags {
-		responses = append(responses, params.GetTagResponse{
-			Name:          tag,
-			UsageCount:    s.tagUsageCounts[tag],
-			TrendingScore: s.tagTrendingScores[tag],
-		})
+		response := params.GetTagResponse{
+			Name: tag,
+		}
+		ok := s.tagUsage.Exist(tag)
+		if ok {
+			usage := s.tagUsage.Get(tag)
+			response.UsageCount = usage.Count
+			response.TrendingScore = usage.TrendingScore
+			response.LastUsed = usage.LastUsed
+		}
+		responses = append(responses, response)
 	}
 
 	sort.Slice(responses, func(i, j int) bool {
@@ -170,6 +177,11 @@ func (s *TagService) GetTags(ctx context.Context, req params.GetTagsRequest) ([]
 				return responses[i].Name < responses[j].Name
 			}
 			return responses[i].Name > responses[j].Name
+		case "last_used":
+			if req.Direction == "asc" {
+				return responses[i].LastUsed.Unix() < responses[j].LastUsed.Unix()
+			}
+			return responses[i].LastUsed.Unix() > responses[j].LastUsed.Unix()
 		}
 		return false
 	})
@@ -177,45 +189,60 @@ func (s *TagService) GetTags(ctx context.Context, req params.GetTagsRequest) ([]
 	return responses, nil
 }
 
-func (s *TagService) getTagUsageCounts(ctx context.Context) (map[string]int, error) {
+func (s *TagService) getTagUsage(ctx context.Context) (*SafeMap[string, entity.TagUsage], error) {
 	// timeout must be less than the periodic ticker duration
 	ctx, cancel := context.WithTimeout(ctx, 8*time.Second)
 	defer cancel()
 
-	counts, err := s.tagRepo.GetTagUsageCounts(ctx)
+	tagUsages, err := s.tagRepo.GetTagUsage(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	return counts, nil
+	sm := NewSafeMap[string, entity.TagUsage]()
+
+	now := time.Now()
+	interval := 24 * time.Hour
+	for tag, usage := range tagUsages {
+		if usage.LastUsed.IsZero() || usage.LastUsed.Add(interval).Before(now) {
+			usageCopy := usage
+			usageCopy.TrendingScore = 0
+			sm.Set(tag, usageCopy)
+			continue
+		}
+
+		score := float64(usage.Count) / float64(1+interval.Hours())
+		usageCopy := usage
+		usageCopy.TrendingScore = score
+		sm.Set(tag, usageCopy)
+	}
+
+	return sm, nil
 }
 
-func (s *TagService) getTagLastUsed(ctx context.Context) (map[string]time.Time, error) {
+func (s *TagService) getTagPairFrequency(ctx context.Context) (*SafeMap[[2]string, int], error) {
 	// timeout must be less than the periodic ticker duration
 	ctx, cancel := context.WithTimeout(ctx, 8*time.Second)
 	defer cancel()
 
-	counts, err := s.tagRepo.GetTagLastUsage(ctx)
+	articleVersionTags, err := s.tagRepo.GetArticleTags(ctx, constanta.Published)
 	if err != nil {
 		return nil, err
 	}
 
-	return counts, nil
+	tagPairs := NewSafeMap[[2]string, int]()
+
+	for i := 0; i < len(articleVersionTags); i++ {
+		for j := i + 1; j < len(articleVersionTags); j++ {
+			pair := [2]string{articleVersionTags[i].TagName, articleVersionTags[j].TagName}
+			tagPairs.Set(pair, tagPairs.Get(pair)+1)
+		}
+	}
+
+	return tagPairs, nil
 }
 
-func (s *TagService) getTagPairs(ctx context.Context) ([][2]string, error) {
-	// timeout must be less than the periodic ticker duration
-	ctx, cancel := context.WithTimeout(ctx, 8*time.Second)
-	defer cancel()
-
-	tags, err := s.GetTags(ctx, params.GetTagsRequest{
-		SortValue: "name",
-		Direction: "asc",
-	})
-	if err != nil {
-		return nil, err
-	}
-
+func (s *TagService) getTagPair(tags []entity.Tag) [][2]string {
 	var pairs [][2]string
 	for i := 0; i < len(tags); i++ {
 		for j := i + 1; j < len(tags); j++ {
@@ -223,26 +250,35 @@ func (s *TagService) getTagPairs(ctx context.Context) ([][2]string, error) {
 		}
 	}
 
-	return pairs, nil
+	return pairs
 }
 
-func (s *TagService) calculateTrendingScore() {
-	now := time.Now()
-	interval := 24 * time.Hour
-	for tag, usage := range s.tagUsageCounts {
-		lastUsed, ok := s.tagLastUsed[tag]
-		if !ok {
-			// If never used, set a low score
-			s.tagTrendingScores[tag] = 0
-			continue
-		}
+func (s *TagService) calculateArticleVersionTagRelationShipScore(tags []entity.Tag) float64 {
 
-		if lastUsed.Add(interval).Before(now) {
-			s.tagTrendingScores[tag] = 0
-			continue
-		}
-
-		score := float64(usage) / float64(1+interval.Hours())
-		s.tagTrendingScores[tag] = score
+	if len(tags) < 2 {
+		return 0
 	}
+
+	var scoreSum float64
+	var validPairs int
+	pairs := s.getTagPair(tags)
+	for _, pair := range pairs {
+		coOccur := float64(s.tagPairFrequency.Get(pair))
+		freq1 := float64(s.tagUsage.Get(pair[0]).Count)
+		freq2 := float64(s.tagUsage.Get(pair[1]).Count)
+		if freq1 == 0 || freq2 == 0 {
+			continue
+		}
+		score := coOccur / math.Sqrt(freq1*freq2)
+		scoreSum += score
+		validPairs++
+	}
+
+	if validPairs == 0 {
+		return 0
+	}
+
+	finalScore := math.Round(scoreSum/float64(validPairs)*10000) / 10000
+
+	return finalScore
 }

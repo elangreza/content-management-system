@@ -57,7 +57,7 @@ func (ah *TagHandler) GetTagsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	allowedSorts := map[string]struct{}{"usage_count": {}, "trending_score": {}, "name": {}}
+	allowedSorts := map[string]struct{}{"usage_count": {}, "trending_score": {}, "name": {}, "last_used": {}}
 	if _, ok := allowedSorts[sortValue[0]]; !ok {
 		sendErrorResponse(w, http.StatusBadRequest, errs.ValidationError{Message: "invalid sort"})
 		return

@@ -27,7 +27,7 @@ type (
 		Body             string
 		Version          int64
 		Status           constanta.ArticleVersionStatus
-		Tags             []string
+		Tags             []Tag
 
 		CreatedBy uuid.UUID
 		CreatedAt time.Time
@@ -51,7 +51,8 @@ func NewArticleVersion(articleID int64, title, body string, createdBy uuid.UUID,
 		Status:    constanta.Draft,
 		Version:   version,
 		CreatedBy: createdBy,
-		Tags:      tags,
+		// TODO change to entity.Tags
+		Tags: NewTags(tags...),
 	}
 }
 

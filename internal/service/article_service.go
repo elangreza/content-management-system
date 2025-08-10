@@ -15,7 +15,7 @@ import (
 
 type (
 	articleRepo interface {
-		CreateArticle(ctx context.Context, article entity.Article, articleVersion entity.ArticleVersion) (int64, error)
+		CreateArticle(ctx context.Context, article entity.Article, articleVersion entity.ArticleVersion) (int64, int64, error)
 		DeleteArticle(ctx context.Context, articleID int64) error
 		GetArticleVersionWithIDAndArticleID(ctx context.Context, articleID int64, articleVersionID int64) (*entity.ArticleVersion, error)
 		UpdateArticleStatus(ctx context.Context, articleID int64, articleVersionID int64, status constanta.ArticleVersionStatus, updatedBy uuid.UUID) error
@@ -23,17 +23,24 @@ type (
 		GetArticleWithID(ctx context.Context, articleID int64) (*entity.Article, error)
 		GetArticleVersionsWithArticleIDAndStatuses(ctx context.Context, ArticleID int64, status ...constanta.ArticleVersionStatus) ([]entity.ArticleVersion, error)
 		GetArticles(ctx context.Context, req entity.GetArticlesQueryServiceParams) ([]entity.ArticleVersion, error)
-		GetRawTagsWithArticleVersionID(ctx context.Context, articleVersionID int64) ([]string, error)
+		GetTagsWithArticleVersionID(ctx context.Context, articleVersionID int64) ([]entity.Tag, error)
+		UpdateArticleVersionRelationshipScore(ctx context.Context, articleVersionID int64, relationshipScore float64) error
+	}
+
+	tagTrigger interface {
+		CreateTagTrigger(name TagServiceAction, payload any)
 	}
 
 	ArticleService struct {
 		articleRepo articleRepo
+		tagTrigger  tagTrigger
 	}
 )
 
-func NewArticleService(articleRepo articleRepo) *ArticleService {
+func NewArticleService(articleRepo articleRepo, tagTrigger tagTrigger) *ArticleService {
 	return &ArticleService{
 		articleRepo: articleRepo,
+		tagTrigger:  tagTrigger,
 	}
 }
 
@@ -46,19 +53,31 @@ func (as *ArticleService) CreateArticle(ctx context.Context, req params.CreateAr
 
 	article := entity.NewArticle(req.Title, req.Body, userID)
 	articleVersion := entity.NewArticleVersion(article.ID, req.Title, req.Body, userID, 1, req.Tags)
-	id, err := as.articleRepo.CreateArticle(ctx, *article, *articleVersion)
+	articleID, articleVersionID, err := as.articleRepo.CreateArticle(ctx, *article, *articleVersion)
 	if err != nil {
 		return nil, err
 	}
 
+	as.tagTrigger.CreateTagTrigger(calculateArticleTagRelation, entity.CalculateArticleVersionTagRelationShipScorePayload{
+		Tags:             articleVersion.Tags,
+		ArticleVersionID: articleVersionID,
+	})
+
 	return &params.CreateArticleResponse{
-		ArticleID: id,
+		ArticleID: articleID,
 	}, nil
 }
 
 // => DELETE /articles/{id}
 func (as *ArticleService) DeleteArticle(ctx context.Context, articleID int64) error {
-	return as.articleRepo.DeleteArticle(ctx, articleID)
+	err := as.articleRepo.DeleteArticle(ctx, articleID)
+	if err != nil {
+		return err
+	}
+
+	as.tagTrigger.CreateTagTrigger(calculateTagUsageAndPairFrequency, nil)
+
+	return nil
 }
 
 // => PUT /articles/{id}/versions/{id}/status
@@ -79,6 +98,22 @@ func (as *ArticleService) UpdateStatusArticle(ctx context.Context, articleID, ar
 
 	if reqStatus < articleVersion.Status {
 		return errs.ValidationError{Message: "status cannot be downgraded"}
+	}
+
+	articleTags, err := as.articleRepo.GetTagsWithArticleVersionID(ctx, articleVersionID)
+	if err != nil {
+		return err
+	}
+
+	if reqStatus == constanta.Published {
+		as.tagTrigger.CreateTagTrigger(calculateArticleTagRelation, entity.CalculateArticleVersionTagRelationShipScorePayload{
+			Tags:             articleTags,
+			ArticleVersionID: articleVersionID,
+		})
+	}
+
+	if reqStatus == constanta.Archived {
+		as.tagTrigger.CreateTagTrigger(calculateTagUsageAndPairFrequency, nil)
 	}
 
 	return as.articleRepo.UpdateArticleStatus(ctx, articleID, articleVersionID, reqStatus, userID)
@@ -114,14 +149,14 @@ func (as *ArticleService) CreateArticleVersionWithReferenceFromArticleID(ctx con
 			return nil, err
 		}
 
-		tags, err := as.articleRepo.GetRawTagsWithArticleVersionID(ctx, articleVersionID)
+		tags, err := as.articleRepo.GetTagsWithArticleVersionID(ctx, articleVersionID)
 		if err != nil {
 			return nil, err
 		}
 
 		slices.Sort(req.Tags)
 
-		if articleVersion.Title == req.Title && articleVersion.Body == req.Body && reflect.DeepEqual(tags, req.Tags) {
+		if articleVersion.Title == req.Title && articleVersion.Body == req.Body && reflect.DeepEqual(tags, entity.NewTags(req.Tags...)) {
 			return nil, errs.ValidationError{Message: "title, tags and body cannot be the same as the current version"}
 		}
 	}
@@ -132,6 +167,11 @@ func (as *ArticleService) CreateArticleVersionWithReferenceFromArticleID(ctx con
 	if err != nil {
 		return nil, err
 	}
+
+	as.tagTrigger.CreateTagTrigger(calculateArticleTagRelation, entity.CalculateArticleVersionTagRelationShipScorePayload{
+		Tags:             newArticleVersion.Tags,
+		ArticleVersionID: articleVersionID,
+	})
 
 	return &params.CreateArticleVersionResponse{
 		ArticleVersionID: newArticleVersionID,
@@ -155,14 +195,14 @@ func (as *ArticleService) CreateArticleVersionWithReferenceFromArticleIDAindVers
 		return nil, err
 	}
 
-	tags, err := as.articleRepo.GetRawTagsWithArticleVersionID(ctx, articleVersionID)
+	tags, err := as.articleRepo.GetTagsWithArticleVersionID(ctx, articleVersionID)
 	if err != nil {
 		return nil, err
 	}
 
 	slices.Sort(req.Tags)
 
-	if articleVersion.Title == req.Title && articleVersion.Body == req.Body && reflect.DeepEqual(tags, req.Tags) {
+	if articleVersion.Title == req.Title && articleVersion.Body == req.Body && reflect.DeepEqual(tags, entity.NewTags(req.Tags...)) {
 		return nil, errs.ValidationError{Message: "title, tags and body cannot be the same as the current version"}
 	}
 
@@ -173,26 +213,15 @@ func (as *ArticleService) CreateArticleVersionWithReferenceFromArticleIDAindVers
 		return nil, err
 	}
 
+	as.tagTrigger.CreateTagTrigger(calculateArticleTagRelation, entity.CalculateArticleVersionTagRelationShipScorePayload{
+		Tags:             newArticleVersion.Tags,
+		ArticleVersionID: articleVersionID,
+	})
+
 	return &params.CreateArticleVersionResponse{
 		ArticleVersionID: newArticleVersionID,
 	}, nil
 }
-
-// DONE
-// Pembuatan Artikel Baru
-// => POST /articles
-// Penghapusan Artikel
-// => DELETE /articles/{id}
-// Perubahan Status Versi Artikel
-// => PUT /articles/{id}/versions/{id}/status
-// Pembuatan Versi Artikel Baru
-// => POST /articles/{id}/versions/{id}
-// Pengambilan Detail Artikel Terbaru
-// => POST /articles/{id}
-// Pengambilan Detail Versi Artikel Tertentu
-// => GET /articles/{id}/versions/{id}
-// Pengambilan Daftar Versi Artikel
-// => GET /articles/{id}/versions
 
 // => POST /articles/{id}
 func (as *ArticleService) GetArticleWithID(ctx context.Context, articleID int64) (*params.GetArticleDetailResponse, error) {
@@ -335,7 +364,6 @@ func (as *ArticleService) GetArticleVersions(ctx context.Context, articleID int6
 	return res, nil
 }
 
-// TODO Pengambilan Daftar Artikel
 // => GET /articles
 func (as *ArticleService) GetArticles(ctx context.Context, req params.GetArticlesQueryParams) ([]params.ArticleVersionResponse, error) {
 
@@ -379,8 +407,4 @@ func (as *ArticleService) GetArticles(ctx context.Context, req params.GetArticle
 	}
 
 	return res, nil
-}
-
-func (as *ArticleService) GetRawTagsWithArticleVersionID(ctx context.Context, articleVersionID int64) ([]string, error) {
-	return as.articleRepo.GetRawTagsWithArticleVersionID(ctx, articleVersionID)
 }
