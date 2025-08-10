@@ -15,7 +15,8 @@ type CreateArticleRequest struct {
 }
 
 type CreateArticleResponse struct {
-	ArticleID int64
+	ArticleID        int64 `json:"article_id"`
+	ArticleVersionID int64 `json:"article_version_id"`
 }
 
 type UpdateArticleStatusRequest struct {
@@ -28,32 +29,35 @@ type CreateArticleVersionRequest struct {
 }
 
 type CreateArticleVersionResponse struct {
-	ArticleVersionID int64
+	ArticleVersionID int64 `json:"article_version_id"`
 }
 
 type ArticleVersionResponse struct {
-	ArticleID int64
-	VersionID int64
-	Title     string
-	Body      string
-	Version   int64
-	Status    int8
+	ArticleID            int64    `json:"article_id"`
+	ArticleVersionID     int64    `json:"article_version_id"`
+	Title                string   `json:"title"`
+	Body                 string   `json:"body"`
+	Version              int64    `json:"version"`
+	Status               int8     `json:"status"`
+	Tags                 []string `json:"tags"`
+	TagRelationShipScore float64  `json:"tag_relationship_score"`
 
-	CreatedBy uuid.UUID
-	CreatedAt time.Time
-	UpdatedBy uuid.UUID
-	UpdatedAt *time.Time
+	CreatedBy uuid.UUID  `json:"created_by"`
+	CreatedAt time.Time  `json:"created_at"`
+	UpdatedBy uuid.UUID  `json:"updated_by"`
+	UpdatedAt *time.Time `json:"updated_at"`
 }
 
 type GetArticleDetailResponse struct {
 	ID               int64                   `json:"id"`
 	DraftedVersion   *ArticleVersionResponse `json:"drafted_version"`
 	PublishedVersion *ArticleVersionResponse `json:"published_version"`
+	ArchivedVersion  *ArticleVersionResponse `json:"archived_version"`
 
-	CreatedBy uuid.UUID
-	CreatedAt time.Time
-	UpdatedBy uuid.UUID
-	UpdatedAt time.Time
+	CreatedBy uuid.UUID `json:"created_by"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedBy uuid.UUID `json:"updated_by"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 type GetArticlesQueryParams struct {
@@ -96,7 +100,6 @@ func (pqr *GetArticlesQueryParams) Validate() error {
 		"version",
 		"created_at",
 		"updated_at",
-		// TODO implement this
 		"tag_relationship_score",
 	)
 

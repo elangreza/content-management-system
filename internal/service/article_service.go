@@ -18,7 +18,7 @@ type (
 		CreateArticle(ctx context.Context, article entity.Article, articleVersion entity.ArticleVersion) (int64, int64, error)
 		DeleteArticle(ctx context.Context, articleID int64) error
 		GetArticleVersionWithIDAndArticleID(ctx context.Context, articleID int64, articleVersionID int64) (*entity.ArticleVersion, error)
-		UpdateArticleStatus(ctx context.Context, articleID int64, articleVersionID int64, status constanta.ArticleVersionStatus, updatedBy uuid.UUID) error
+		UpdateArticleStatus(ctx context.Context, articleID int64, articleVersionID int64, status, prevStatus constanta.ArticleVersionStatus, updatedBy uuid.UUID) error
 		CreateArticleVersion(ctx context.Context, articleVersion entity.ArticleVersion) (int64, error)
 		GetArticleWithID(ctx context.Context, articleID int64) (*entity.Article, error)
 		GetArticleVersionsWithArticleIDAndStatuses(ctx context.Context, ArticleID int64, status ...constanta.ArticleVersionStatus) ([]entity.ArticleVersion, error)
@@ -64,7 +64,8 @@ func (as *ArticleService) CreateArticle(ctx context.Context, req params.CreateAr
 	})
 
 	return &params.CreateArticleResponse{
-		ArticleID: articleID,
+		ArticleID:        articleID,
+		ArticleVersionID: articleVersionID,
 	}, nil
 }
 
@@ -116,7 +117,7 @@ func (as *ArticleService) UpdateStatusArticle(ctx context.Context, articleID, ar
 		as.tagTrigger.CreateTagTrigger(calculateTagUsageAndPairFrequency, nil)
 	}
 
-	return as.articleRepo.UpdateArticleStatus(ctx, articleID, articleVersionID, reqStatus, userID)
+	return as.articleRepo.UpdateArticleStatus(ctx, articleID, articleVersionID, reqStatus, articleVersion.Status, userID)
 }
 
 // => PUT /articles/{articleID}
@@ -170,7 +171,7 @@ func (as *ArticleService) CreateArticleVersionWithReferenceFromArticleID(ctx con
 
 	as.tagTrigger.CreateTagTrigger(calculateArticleTagRelation, entity.CalculateArticleVersionTagRelationShipScorePayload{
 		Tags:             newArticleVersion.Tags,
-		ArticleVersionID: articleVersionID,
+		ArticleVersionID: newArticleVersionID,
 	})
 
 	return &params.CreateArticleVersionResponse{
@@ -215,7 +216,7 @@ func (as *ArticleService) CreateArticleVersionWithReferenceFromArticleIDAindVers
 
 	as.tagTrigger.CreateTagTrigger(calculateArticleTagRelation, entity.CalculateArticleVersionTagRelationShipScorePayload{
 		Tags:             newArticleVersion.Tags,
-		ArticleVersionID: articleVersionID,
+		ArticleVersionID: newArticleVersionID,
 	})
 
 	return &params.CreateArticleVersionResponse{
@@ -235,24 +236,69 @@ func (as *ArticleService) GetArticleWithID(ctx context.Context, articleID int64)
 		return nil, errors.New("error when parsing user permission")
 	}
 
-	var articleVersionResponse *params.ArticleVersionResponse
+	var draftedVersionResponse *params.ArticleVersionResponse
 	if article.DraftedVersionID != 0 && userCanReadDraftedAndArchivedArticle {
 		draftedVersion, err := as.articleRepo.GetArticleVersionWithIDAndArticleID(ctx, article.ID, article.DraftedVersionID)
 		if err != nil {
 			return nil, err
 		}
 
-		articleVersionResponse = &params.ArticleVersionResponse{
-			ArticleID: draftedVersion.ArticleID,
-			VersionID: draftedVersion.ArticleVersionID,
-			Title:     draftedVersion.Title,
-			Body:      draftedVersion.Body,
-			Version:   draftedVersion.Version,
-			Status:    int8(draftedVersion.Status),
-			CreatedBy: draftedVersion.CreatedBy,
-			CreatedAt: draftedVersion.CreatedAt,
-			UpdatedBy: draftedVersion.UpdatedBy,
-			UpdatedAt: draftedVersion.UpdatedAt,
+		tags, err := as.articleRepo.GetTagsWithArticleVersionID(ctx, draftedVersion.ArticleVersionID)
+		if err != nil {
+			return nil, err
+		}
+
+		stringTags := make([]string, len(tags))
+		for i, tag := range tags {
+			stringTags[i] = tag.Name
+		}
+
+		draftedVersionResponse = &params.ArticleVersionResponse{
+			ArticleID:            draftedVersion.ArticleID,
+			ArticleVersionID:     draftedVersion.ArticleVersionID,
+			Title:                draftedVersion.Title,
+			Body:                 draftedVersion.Body,
+			Version:              draftedVersion.Version,
+			Status:               int8(draftedVersion.Status),
+			CreatedBy:            draftedVersion.CreatedBy,
+			CreatedAt:            draftedVersion.CreatedAt,
+			UpdatedBy:            draftedVersion.UpdatedBy,
+			UpdatedAt:            draftedVersion.UpdatedAt,
+			Tags:                 stringTags,
+			TagRelationShipScore: draftedVersion.TagRelationShipScore,
+		}
+	}
+
+	var archivedVersionResponse *params.ArticleVersionResponse
+	if article.ArchivedVersionID != 0 && userCanReadDraftedAndArchivedArticle {
+		archivedVersion, err := as.articleRepo.GetArticleVersionWithIDAndArticleID(ctx, article.ID, article.ArchivedVersionID)
+		if err != nil {
+			return nil, err
+		}
+
+		tags, err := as.articleRepo.GetTagsWithArticleVersionID(ctx, archivedVersion.ArticleVersionID)
+		if err != nil {
+			return nil, err
+		}
+
+		stringTags := make([]string, len(tags))
+		for i, tag := range tags {
+			stringTags[i] = tag.Name
+		}
+
+		archivedVersionResponse = &params.ArticleVersionResponse{
+			ArticleID:            archivedVersion.ArticleID,
+			ArticleVersionID:     archivedVersion.ArticleVersionID,
+			Title:                archivedVersion.Title,
+			Body:                 archivedVersion.Body,
+			Version:              archivedVersion.Version,
+			Status:               int8(archivedVersion.Status),
+			CreatedBy:            archivedVersion.CreatedBy,
+			CreatedAt:            archivedVersion.CreatedAt,
+			UpdatedBy:            archivedVersion.UpdatedBy,
+			UpdatedAt:            archivedVersion.UpdatedAt,
+			Tags:                 stringTags,
+			TagRelationShipScore: archivedVersion.TagRelationShipScore,
 		}
 	}
 
@@ -263,32 +309,45 @@ func (as *ArticleService) GetArticleWithID(ctx context.Context, articleID int64)
 			return nil, err
 		}
 
+		tags, err := as.articleRepo.GetTagsWithArticleVersionID(ctx, publishedVersion.ArticleVersionID)
+		if err != nil {
+			return nil, err
+		}
+
+		stringTags := make([]string, len(tags))
+		for i, tag := range tags {
+			stringTags[i] = tag.Name
+		}
+
 		publishedVersionResponse = &params.ArticleVersionResponse{
-			ArticleID: publishedVersion.ArticleID,
-			VersionID: publishedVersion.ArticleVersionID,
-			Title:     publishedVersion.Title,
-			Body:      publishedVersion.Body,
-			Version:   publishedVersion.Version,
-			Status:    int8(publishedVersion.Status),
-			CreatedBy: publishedVersion.CreatedBy,
-			CreatedAt: publishedVersion.CreatedAt,
-			UpdatedBy: publishedVersion.UpdatedBy,
-			UpdatedAt: publishedVersion.UpdatedAt,
+			ArticleID:            publishedVersion.ArticleID,
+			ArticleVersionID:     publishedVersion.ArticleVersionID,
+			Title:                publishedVersion.Title,
+			Body:                 publishedVersion.Body,
+			Version:              publishedVersion.Version,
+			Status:               int8(publishedVersion.Status),
+			CreatedBy:            publishedVersion.CreatedBy,
+			CreatedAt:            publishedVersion.CreatedAt,
+			UpdatedBy:            publishedVersion.UpdatedBy,
+			UpdatedAt:            publishedVersion.UpdatedAt,
+			Tags:                 stringTags,
+			TagRelationShipScore: publishedVersion.TagRelationShipScore,
 		}
 	}
 
-	if articleVersionResponse == nil && publishedVersionResponse == nil {
+	if draftedVersionResponse == nil && publishedVersionResponse == nil && archivedVersionResponse == nil {
 		if !userCanReadDraftedAndArchivedArticle {
 			return nil, errs.ValidationError{Message: "unauthenticated user cannot access this endpoint with status Drafted or Archived"}
 		}
 
-		return nil, errs.ValidationError{Message: "this article has no published or drafted version"}
+		return nil, errs.ValidationError{Message: "this article has no published or drafted or archived version"}
 	}
 
 	return &params.GetArticleDetailResponse{
 		ID:               article.ID,
-		DraftedVersion:   articleVersionResponse,
+		DraftedVersion:   draftedVersionResponse,
 		PublishedVersion: publishedVersionResponse,
+		ArchivedVersion:  archivedVersionResponse,
 		CreatedAt:        article.CreatedAt,
 		CreatedBy:        article.CreatedBy,
 		UpdatedAt:        article.UpdatedAt,
@@ -312,17 +371,24 @@ func (as *ArticleService) GetArticleVersionWithIDAndArticleID(ctx context.Contex
 		return nil, errs.ValidationError{Message: "unauthenticated user cannot access this endpoint with status Drafted or Archived"}
 	}
 
+	stringTags := make([]string, len(articleVersion.Tags))
+	for i, tag := range articleVersion.Tags {
+		stringTags[i] = tag.Name
+	}
+
 	return &params.ArticleVersionResponse{
-		ArticleID: articleVersion.ArticleID,
-		VersionID: articleVersion.ArticleVersionID,
-		Title:     articleVersion.Title,
-		Body:      articleVersion.Body,
-		Version:   articleVersion.Version,
-		Status:    int8(articleVersion.Status),
-		CreatedBy: articleVersion.CreatedBy,
-		CreatedAt: articleVersion.CreatedAt,
-		UpdatedBy: articleVersion.UpdatedBy,
-		UpdatedAt: articleVersion.UpdatedAt,
+		ArticleID:            articleVersion.ArticleID,
+		ArticleVersionID:     articleVersion.ArticleVersionID,
+		Title:                articleVersion.Title,
+		Body:                 articleVersion.Body,
+		Version:              articleVersion.Version,
+		Status:               int8(articleVersion.Status),
+		CreatedBy:            articleVersion.CreatedBy,
+		CreatedAt:            articleVersion.CreatedAt,
+		UpdatedBy:            articleVersion.UpdatedBy,
+		UpdatedAt:            articleVersion.UpdatedAt,
+		Tags:                 stringTags,
+		TagRelationShipScore: articleVersion.TagRelationShipScore,
 	}, nil
 }
 
@@ -348,16 +414,17 @@ func (as *ArticleService) GetArticleVersions(ctx context.Context, articleID int6
 	res := make([]params.ArticleVersionResponse, len(articleVersions))
 	for i, articleVersion := range articleVersions {
 		res[i] = params.ArticleVersionResponse{
-			ArticleID: articleVersion.ArticleID,
-			VersionID: articleVersion.ArticleVersionID,
-			Title:     articleVersion.Title,
-			Body:      articleVersion.Body,
-			Version:   articleVersion.Version,
-			Status:    int8(articleVersion.Status),
-			CreatedBy: articleVersion.CreatedBy,
-			CreatedAt: articleVersion.CreatedAt,
-			UpdatedBy: articleVersion.UpdatedBy,
-			UpdatedAt: articleVersion.UpdatedAt,
+			ArticleID:            articleVersion.ArticleID,
+			ArticleVersionID:     articleVersion.ArticleVersionID,
+			Title:                articleVersion.Title,
+			Body:                 articleVersion.Body,
+			Version:              articleVersion.Version,
+			Status:               int8(articleVersion.Status),
+			CreatedBy:            articleVersion.CreatedBy,
+			CreatedAt:            articleVersion.CreatedAt,
+			UpdatedBy:            articleVersion.UpdatedBy,
+			UpdatedAt:            articleVersion.UpdatedAt,
+			TagRelationShipScore: articleVersion.TagRelationShipScore,
 		}
 	}
 
@@ -393,16 +460,17 @@ func (as *ArticleService) GetArticles(ctx context.Context, req params.GetArticle
 	res := make([]params.ArticleVersionResponse, len(articleVersions))
 	for i, articleVersion := range articleVersions {
 		res[i] = params.ArticleVersionResponse{
-			ArticleID: articleVersion.ArticleID,
-			VersionID: articleVersion.ArticleVersionID,
-			Title:     articleVersion.Title,
-			Body:      articleVersion.Body,
-			Version:   articleVersion.Version,
-			Status:    int8(articleVersion.Status),
-			CreatedBy: articleVersion.CreatedBy,
-			CreatedAt: articleVersion.CreatedAt,
-			UpdatedBy: articleVersion.UpdatedBy,
-			UpdatedAt: articleVersion.UpdatedAt,
+			ArticleID:            articleVersion.ArticleID,
+			ArticleVersionID:     articleVersion.ArticleVersionID,
+			Title:                articleVersion.Title,
+			Body:                 articleVersion.Body,
+			Version:              articleVersion.Version,
+			Status:               int8(articleVersion.Status),
+			CreatedBy:            articleVersion.CreatedBy,
+			CreatedAt:            articleVersion.CreatedAt,
+			UpdatedBy:            articleVersion.UpdatedBy,
+			UpdatedAt:            articleVersion.UpdatedAt,
+			TagRelationShipScore: articleVersion.TagRelationShipScore,
 		}
 	}
 

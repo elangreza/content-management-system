@@ -1,2 +1,2 @@
 ALTER TABLE
-    article_versions DROP COLUMN relationship_score;
+    article_versions DROP COLUMN tag_relationship_score;

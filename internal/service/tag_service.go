@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"math"
 	"sort"
@@ -73,7 +74,10 @@ func (s *TagService) tagRoutine() {
 		case <-newTicker.C:
 			// slog.Info("ticker triggered")
 			s.calculateTagUsageAndPairFrequency()
-		case action := <-s.actionTrigger:
+		case action, ok := <-s.actionTrigger:
+			if !ok {
+				return
+			}
 			switch action.Name {
 			case calculateTagUsageAndPairFrequency:
 				slog.Info("calculateTagUsageAndPairFrequency")
@@ -81,17 +85,10 @@ func (s *TagService) tagRoutine() {
 			case calculateArticleTagRelation:
 				slog.Info("calculateArticleTagRelation")
 				s.calculateTagUsageAndPairFrequency()
-				payload, ok := action.Payload.(entity.CalculateArticleVersionTagRelationShipScorePayload)
-				if !ok {
-					slog.Error("invalid payload for calculateArticleTagRelation action")
-					continue
-				}
-				score := s.calculateArticleVersionTagRelationShipScore(payload.Tags)
-				if err := s.updateArticleVersionRelationshipScore(score, payload.ArticleVersionID); err != nil {
+				if err := s.updateArticleVersionTagRelationshipScore(action.Payload); err != nil {
 					slog.Error("failed to update relationship score", "error", err)
 					continue
 				}
-				slog.Info("successfully updated relationship score", "score", score, "article_version_id", payload.ArticleVersionID)
 			default:
 				slog.Error("unknown action", "action", action.Name)
 			}
@@ -99,10 +96,24 @@ func (s *TagService) tagRoutine() {
 	}
 }
 
-func (s *TagService) updateArticleVersionRelationshipScore(score float64, articleVersionID int64) error {
-	if err := s.articleRepo.UpdateArticleVersionRelationshipScore(context.Background(), articleVersionID, score); err != nil {
-		return err
+func (s *TagService) updateArticleVersionTagRelationshipScore(actionPayload any) error {
+
+	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	payload, ok := actionPayload.(entity.CalculateArticleVersionTagRelationShipScorePayload)
+	if !ok {
+		return fmt.Errorf("invalid payload for calculateArticleTagRelation action")
 	}
+
+	score := s.calculateArticleVersionTagRelationShipScore(payload.Tags)
+
+	if err := s.articleRepo.UpdateArticleVersionRelationshipScore(ctx, payload.ArticleVersionID, score); err != nil {
+		return fmt.Errorf("failed to update relationship score: %w", err)
+	}
+
+	slog.Info("successfully updated relationship score", "score", score, "article_version_id", payload.ArticleVersionID)
 
 	return nil
 }

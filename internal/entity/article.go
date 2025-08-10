@@ -12,6 +12,7 @@ type (
 		ID                 int64
 		PublishedVersionID int64
 		DraftedVersionID   int64
+		ArchivedVersionID  int64
 		VersionSequence    int64
 
 		CreatedBy uuid.UUID
@@ -21,13 +22,14 @@ type (
 	}
 
 	ArticleVersion struct {
-		ArticleVersionID int64
-		ArticleID        int64
-		Title            string
-		Body             string
-		Version          int64
-		Status           constanta.ArticleVersionStatus
-		Tags             []Tag
+		ArticleVersionID     int64
+		ArticleID            int64
+		Title                string
+		Body                 string
+		Version              int64
+		Status               constanta.ArticleVersionStatus
+		Tags                 []Tag
+		TagRelationShipScore float64
 
 		CreatedBy uuid.UUID
 		CreatedAt time.Time
@@ -51,8 +53,7 @@ func NewArticleVersion(articleID int64, title, body string, createdBy uuid.UUID,
 		Status:    constanta.Draft,
 		Version:   version,
 		CreatedBy: createdBy,
-		// TODO change to entity.Tags
-		Tags: NewTags(tags...),
+		Tags:      NewTags(tags...),
 	}
 }
 
