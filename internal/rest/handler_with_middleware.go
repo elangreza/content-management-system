@@ -65,5 +65,6 @@ func NewHandlerWithMiddleware(
 		r.Get("/articles/{articleID}/versions/{articleVersionID}", articleHandler.GetArticleVersionWithIDAndArticleID)
 		r.Get("/articles", articleHandler.GetArticlesHandler)
 		r.Get("/tags", tagHandler.GetTagsHandler)
+		r.Get("/tags/{name}", tagHandler.GetTagHandler)
 	})
 }

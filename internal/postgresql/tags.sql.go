@@ -7,6 +7,7 @@ import (
 
 	"github.com/elangreza/content-management-system/internal/constanta"
 	"github.com/elangreza/content-management-system/internal/entity"
+	"github.com/lib/pq"
 )
 
 type (
@@ -25,7 +26,6 @@ const (
 	upsertTagQuery = `INSERT INTO tags ("name") VALUES ($1) ON CONFLICT (name) DO NOTHING`
 )
 
-// UpsertTags implements TagsRepo.
 func (u *TagsRepo) UpsertTags(ctx context.Context, names ...string) error {
 	preparedQuery, err := u.db.Prepare(upsertTagQuery)
 	if err != nil {
@@ -44,9 +44,12 @@ func (u *TagsRepo) UpsertTags(ctx context.Context, names ...string) error {
 	return nil
 }
 
-func (u *TagsRepo) GetTags(ctx context.Context) ([]string, error) {
-	query := `SELECT name FROM tags`
-	rows, err := u.db.QueryContext(ctx, query)
+const (
+	getTagsQuery = `SELECT name FROM tags WHERE (name IN ($1) OR $1 IS NULL)`
+)
+
+func (u *TagsRepo) GetTags(ctx context.Context, names ...string) ([]string, error) {
+	rows, err := u.db.QueryContext(ctx, getTagsQuery, pq.Array(names))
 	if err != nil {
 		return nil, err
 	}
@@ -64,75 +67,18 @@ func (u *TagsRepo) GetTags(ctx context.Context) ([]string, error) {
 	return tags, nil
 }
 
-func (u *TagsRepo) GetTagUsageCounts(ctx context.Context) (map[string]int, error) {
-	query := `
-		SELECT t.name, COUNT(avt.tag_name) AS usage_count
-		FROM tags t
-		LEFT JOIN article_version_tags avt ON t.name = avt.tag_name 
-		LEFT JOIN article_versions av ON avt.article_version_id = av.id
-		WHERE av.status = $1
-		GROUP BY t.name
-	`
-
-	rows, err := u.db.QueryContext(ctx, query, constanta.Published)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	counts := make(map[string]int)
-	for rows.Next() {
-		var name string
-		var count int
-		if err := rows.Scan(&name, &count); err != nil {
-			return nil, err
-		}
-		counts[name] = count
-	}
-
-	return counts, nil
-}
-
-func (u *TagsRepo) GetTagLastUsage(ctx context.Context) (map[string]time.Time, error) {
-	query := `
-		SELECT t.name, MAX(av.created_at) AS last_used
-		FROM tags t
-		LEFT JOIN article_version_tags avt ON t.name = avt.tag_name 
-		LEFT JOIN article_versions av ON avt.article_version_id = av.id
-		WHERE av.status = $1
-		GROUP BY t.name
-	`
-
-	rows, err := u.db.QueryContext(ctx, query, constanta.Published)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	counts := make(map[string]time.Time)
-	for rows.Next() {
-		var name string
-		var lastUsed time.Time
-		if err := rows.Scan(&name, &lastUsed); err != nil {
-			return nil, err
-		}
-		counts[name] = lastUsed
-	}
-
-	return counts, nil
-}
+const getTagUsageQuery = `
+	SELECT t.name, COUNT(avt.tag_name) as usage_count, MAX(av.created_at) AS last_used
+	FROM tags t
+	LEFT JOIN article_version_tags avt ON t.name = avt.tag_name 
+	LEFT JOIN article_versions av ON avt.article_version_id = av.id
+	WHERE av.status = $1
+	GROUP BY t.name
+`
 
 func (u *TagsRepo) GetTagUsage(ctx context.Context) (map[string]entity.TagUsage, error) {
-	query := `
-		SELECT t.name, COUNT(avt.tag_name) as usage_count, MAX(av.created_at) AS last_used
-		FROM tags t
-		LEFT JOIN article_version_tags avt ON t.name = avt.tag_name 
-		LEFT JOIN article_versions av ON avt.article_version_id = av.id
-		WHERE av.status = $1
-		GROUP BY t.name
-	`
 
-	rows, err := u.db.QueryContext(ctx, query, constanta.Published)
+	rows, err := u.db.QueryContext(ctx, getTagUsageQuery, constanta.Published)
 	if err != nil {
 		return nil, err
 	}

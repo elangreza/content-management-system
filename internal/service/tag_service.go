@@ -10,6 +10,7 @@ import (
 
 	"github.com/elangreza/content-management-system/internal/constanta"
 	"github.com/elangreza/content-management-system/internal/entity"
+	errs "github.com/elangreza/content-management-system/internal/error"
 	"github.com/elangreza/content-management-system/internal/params"
 )
 
@@ -17,9 +18,7 @@ type (
 	// tagRepo defines the methods that the tag repository must implement.
 	tagRepo interface {
 		UpsertTags(ctx context.Context, names ...string) error
-		GetTags(ctx context.Context) ([]string, error)
-		GetTagUsageCounts(ctx context.Context) (map[string]int, error)
-		GetTagLastUsage(ctx context.Context) (map[string]time.Time, error)
+		GetTags(ctx context.Context, names ...string) ([]string, error)
 		GetTagUsage(ctx context.Context) (map[string]entity.TagUsage, error)
 		GetArticleTags(ctx context.Context, status constanta.ArticleVersionStatus) ([]entity.ArticleVersionTag, error)
 	}
@@ -198,6 +197,31 @@ func (s *TagService) GetTags(ctx context.Context, req params.GetTagsRequest) ([]
 	})
 
 	return responses, nil
+}
+
+func (s *TagService) GetTag(ctx context.Context, tagName string) (*params.GetTagResponse, error) {
+	tags, err := s.tagRepo.GetTags(ctx, tagName)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(tags) == 0 {
+		return nil, errs.NotFound{Message: fmt.Sprintf("tag %s", tagName)}
+	}
+
+	response := params.GetTagResponse{
+		Name: tagName,
+	}
+
+	ok := s.tagUsage.Exist(tagName)
+	if ok {
+		usage := s.tagUsage.Get(tagName)
+		response.UsageCount = usage.Count
+		response.TrendingScore = usage.TrendingScore
+		response.LastUsed = usage.LastUsed
+	}
+
+	return &response, nil
 }
 
 func (s *TagService) getTagUsage(ctx context.Context) (*SafeMap[string, entity.TagUsage], error) {

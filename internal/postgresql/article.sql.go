@@ -35,7 +35,6 @@ const (
 		VALUES ($1,$2) ON CONFLICT (article_version_id, tag_name) DO NOTHING;`
 )
 
-// CreateArticle implements ArticleRepo.
 func (ar *ArticleRepo) CreateArticle(ctx context.Context, article entity.Article, articleVersion entity.ArticleVersion) (int64, int64, error) {
 	var articleID, articleVersionID int64
 	err := runInTx(ctx, ar.db, func(tx *sql.Tx) error {
@@ -97,7 +96,6 @@ const (
 		WHERE id=$1;`
 )
 
-// DeleteArticle implements ArticleRepo.
 func (ar *ArticleRepo) DeleteArticle(ctx context.Context, articleID int64) error {
 	err := runInTx(ctx, ar.db, func(tx *sql.Tx) error {
 		if _, err := tx.ExecContext(ctx, resetArticlePublishedAndDraftedToNullQuery, articleID); err != nil {
@@ -602,9 +600,12 @@ func (ar *ArticleRepo) GetTagsWithArticleVersionID(ctx context.Context, articleV
 	return tags, nil
 }
 
+const (
+	UpdateArticleVersionRelationshipScoreQuery = `UPDATE article_versions SET tag_relationship_score = $1 WHERE id = $2;`
+)
+
 func (ar *ArticleRepo) UpdateArticleVersionRelationshipScore(ctx context.Context, articleVersionID int64, relationshipScore float64) error {
-	query := `UPDATE article_versions SET tag_relationship_score = $1 WHERE id = $2;`
-	_, err := ar.db.ExecContext(ctx, query, relationshipScore, articleVersionID)
+	_, err := ar.db.ExecContext(ctx, UpdateArticleVersionRelationshipScoreQuery, relationshipScore, articleVersionID)
 	if err != nil {
 		return err
 	}

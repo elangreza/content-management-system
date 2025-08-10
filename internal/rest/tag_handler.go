@@ -8,12 +8,14 @@ import (
 
 	errs "github.com/elangreza/content-management-system/internal/error"
 	"github.com/elangreza/content-management-system/internal/params"
+	"github.com/go-chi/chi/v5"
 )
 
 type (
 	TagService interface {
 		CreateTag(ctx context.Context, tagNames ...string) error
 		GetTags(ctx context.Context, req params.GetTagsRequest) ([]params.GetTagResponse, error)
+		GetTag(ctx context.Context, tagName string) (*params.GetTagResponse, error)
 	}
 
 	TagHandler struct {
@@ -74,6 +76,27 @@ func (ah *TagHandler) GetTagsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	tags, err := ah.svc.GetTags(r.Context(), req)
+	if err != nil {
+		sendErrorResponse(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	sendSuccessResponse(w, http.StatusOK, tags)
+}
+
+func (ah *TagHandler) GetTagHandler(w http.ResponseWriter, r *http.Request) {
+	tagName := chi.URLParam(r, "name")
+	if tagName == "" {
+		sendErrorResponse(w, http.StatusBadRequest, errs.ValidationError{Message: "tag name is required"})
+		return
+	}
+	name := strings.TrimSpace(tagName)
+	if name == "" {
+		sendErrorResponse(w, http.StatusBadRequest, errs.ValidationError{Message: "tag name cannot be empty"})
+		return
+	}
+
+	tags, err := ah.svc.GetTag(r.Context(), name)
 	if err != nil {
 		sendErrorResponse(w, http.StatusInternalServerError, err)
 		return
