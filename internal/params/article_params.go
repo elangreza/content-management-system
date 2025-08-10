@@ -14,6 +14,18 @@ type CreateArticleRequest struct {
 	Tags        []string
 }
 
+func (car *CreateArticleRequest) Validate() error {
+	if car.Title == "" {
+		return errs.ValidationError{Message: "title is required"}
+	}
+
+	if car.Body == "" {
+		return errs.ValidationError{Message: "body is required"}
+	}
+
+	return nil
+}
+
 type CreateArticleResponse struct {
 	ArticleID        int64 `json:"article_id"`
 	ArticleVersionID int64 `json:"article_version_id"`
@@ -66,7 +78,6 @@ type GetArticlesQueryParams struct {
 	Status    []constanta.ArticleVersionStatus
 	CreatedBy []uuid.UUID
 	UpdatedBy []uuid.UUID
-	// TODO tags
 
 	// Embedding PaginationParams for pagination and sorting
 	PaginationParams

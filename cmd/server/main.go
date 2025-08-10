@@ -18,9 +18,23 @@ import (
 	"github.com/elangreza/content-management-system/internal/service"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/go-chi/cors"
+	httpSwagger "github.com/swaggo/http-swagger"
+
+	_ "github.com/elangreza/content-management-system/docs"
 	_ "github.com/lib/pq"
 )
 
+// @title							Content Management System API
+// @version						1.0
+// @description					This is a sample server for a content management system.
+// @contact.name					reza
+// @contact.email					mrezaelange@gmail.com
+// @securitydefinitions.bearerauth	BearerAuth
+// @in								header
+// @name							Authorization
+// @description					JWT Authorization header using the Bearer scheme. Example: "Authorization: Bearer {token}"
+// @bearerformat					JWT
 func main() {
 	cfg, err := config.LoadConfig()
 	errChecker(err)
@@ -31,10 +45,20 @@ func main() {
 	// deps, err := InitializeProductHandler(cfg)
 	// errChecker(err)
 
-	c := chi.NewRouter()
+	handler := chi.NewRouter()
 
-	c.Use(middleware.Recoverer)
-	c.Use(middleware.Logger)
+	handler.Use(middleware.Recoverer)
+	handler.Use(middleware.Logger)
+	handler.Use(middleware.Timeout(60 * time.Second))
+	handler.Use(middleware.RequestID)
+	handler.Use(cors.Handler(cors.Options{
+		AllowedOrigins:   []string{"*"},
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedHeaders:   []string{"Content-Type", "Authorization"},
+		ExposedHeaders:   []string{"Content-Length", "Content-Type"},
+		AllowCredentials: true,
+		MaxAge:           300,
+	}))
 
 	// repositories
 	userRepo := postgresql.NewUserRepo(dn)
@@ -48,12 +72,15 @@ func main() {
 	tagService := service.NewTagService(articleRepo, tagRepo)
 	articleService := service.NewArticleService(articleRepo, tagService)
 
-	rest.NewAuthRouter(c, authService)
-	rest.NewHandlerWithMiddleware(c, profileService, authService, articleService, tagService)
+	rest.NewAuthHandler(handler, authService)
+	rest.NewHandlerWithMiddleware(handler, profileService, authService, articleService, tagService)
+
+	// Swagger docs endpoint
+	handler.Get("/swagger/*", httpSwagger.Handler())
 
 	srv := &http.Server{
 		Addr:           fmt.Sprintf(":%s", cfg.HTTP_PORT),
-		Handler:        c,
+		Handler:        handler,
 		ReadTimeout:    10 * time.Second,
 		WriteTimeout:   10 * time.Second,
 		MaxHeaderBytes: 1 << 20,

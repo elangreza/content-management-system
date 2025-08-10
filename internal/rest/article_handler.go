@@ -32,6 +32,19 @@ type (
 	}
 )
 
+// CreateArticleHandler
+//
+//	@Summary		Create a new article
+//	@Description	Create a new article with the given parameters
+//	@Tags			articles
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			Authorization	header		string	false	"fill with Bearer token. The token can be accessed via api /auth/login. If authorization is not provided, the default behavior is showing only published articles. Otherwise, if the token is present and the user has permission to read drafted and archived articles, the token can be used to access draft, published, and archived articles. "//	@Param	body	body	params.CreateArticleRequest	true	"Create Article Request"
+//	@Success		201				{object}	params.CreateArticleResponse
+//	@Failure		400				{object}	errs.ValidationError
+//	@Failure		500				{object}	string
+//	@Router			/articles [post]
 func (ah *ArticleHandler) CreateArticleHandler(w http.ResponseWriter, r *http.Request) {
 
 	body := params.CreateArticleRequest{}
@@ -40,11 +53,10 @@ func (ah *ArticleHandler) CreateArticleHandler(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	// TODO validation
-	// if err := body.Validate(); err != nil {
-	// 	Error(w, http.StatusBadRequest, err)
-	// 	return
-	// }
+	if err := body.Validate(); err != nil {
+		sendErrorResponse(w, http.StatusBadRequest, err)
+		return
+	}
 
 	Article, err := ah.svc.CreateArticle(r.Context(), body)
 	if err != nil {
@@ -52,9 +64,22 @@ func (ah *ArticleHandler) CreateArticleHandler(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	sendSuccessResponse(w, http.StatusOK, Article)
+	sendSuccessResponse(w, http.StatusCreated, Article)
 }
 
+// DeleteArticleHandler
+//
+//	@Summary		Delete an article by ID
+//	@Description	Delete an article with the given ID
+//	@Tags			articles
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			Authorization	header		string	false	"fill with Bearer token. The token can be accessed via api /auth/login. If authorization is not provided, the default behavior is showing only published articles. Otherwise, if the token is present and the user has permission to read drafted and archived articles, the token can be used to access draft, published, and archived articles. "//	@Param	articleID	path	int	true	"Article ID"
+//	@Success		200				{string}	string	"ok"
+//	@Failure		400				{object}	errs.ValidationError
+//	@Failure		500				{object}	object
+//	@Router			/articles/{articleID} [delete]
 func (ah *ArticleHandler) DeleteArticleHandler(w http.ResponseWriter, r *http.Request) {
 
 	articleIDParam := chi.URLParam(r, "articleID")
@@ -75,6 +100,22 @@ func (ah *ArticleHandler) DeleteArticleHandler(w http.ResponseWriter, r *http.Re
 	sendSuccessResponse(w, http.StatusOK, "ok")
 }
 
+// UpdateArticleStatusHandler
+//
+//	@Summary		Update the status of an article version
+//	@Description	Update the status of an article version with the given parameters
+//	@Tags			articles
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			Authorization		header		string								false	"fill with Bearer token. The token can be accessed via api /auth/login. If authorization is not provided, the default behavior is showing only published articles. Otherwise, if the token is present and the user has permission to read drafted and archived articles, the token can be used to access draft, published, and archived articles. "//	@Param	articleID	path	int	true	"Article ID"
+//	@Param			articleVersionID	path		int									true	"Article Version ID"
+//	@Param			body				body		params.UpdateArticleStatusRequest	true	"Update Article Status Request"
+//	@Success		200					{string}	string								"ok"
+//	@Failure		400					{object}	errs.ValidationError
+//	@Failure		500					{object}	string
+//	@Failure		500					{object}	string
+//	@Router			/articles/{articleID}/versions/{articleVersionID}/status [put]
 func (ah *ArticleHandler) UpdateArticleStatusHandler(w http.ResponseWriter, r *http.Request) {
 	articleIDParam := chi.URLParam(r, "articleID")
 
@@ -113,6 +154,20 @@ func (ah *ArticleHandler) UpdateArticleStatusHandler(w http.ResponseWriter, r *h
 	sendSuccessResponse(w, http.StatusOK, "ok")
 }
 
+// CreateNewArticleVersionWithReferenceFromArticleID
+//
+//	@Summary		Create a new article version with reference from an article ID
+//	@Description	Create a new article version with reference from an article ID with the given parameters
+//	@Tags			articles
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			Authorization	header		string								false	"fill with Bearer token. The token can be accessed via api /auth/login. If authorization is not provided, the default behavior is showing only published articles. Otherwise, if the token is present and the user has permission to read drafted and archived articles, the token can be used to access draft, published, and archived articles. "//	@Param	articleID	path	int	true	"Article ID"
+//	@Param			body			body		params.CreateArticleVersionRequest	true	"Create Article Version Request"
+//	@Success		201				{object}	params.CreateArticleVersionResponse
+//	@Failure		400				{object}	errs.ValidationError
+//	@Failure		500				{object}	string
+//	@Router			/articles/{articleID}/versions [post]
 func (ah *ArticleHandler) CreateNewArticleVersionWithReferenceFromArticleID(w http.ResponseWriter, r *http.Request) {
 	articleIDParam := chi.URLParam(r, "articleID")
 
@@ -134,9 +189,24 @@ func (ah *ArticleHandler) CreateNewArticleVersionWithReferenceFromArticleID(w ht
 		return
 	}
 
-	sendSuccessResponse(w, http.StatusOK, newArticleVersion)
+	sendSuccessResponse(w, http.StatusCreated, newArticleVersion)
 }
 
+// CreateNewArticleVersionWithReferenceFromArticleIDAndVersionID
+//
+//	@Summary		Create a new article version with reference from an article ID and version ID
+//	@Description	Create a new article version with reference from an article ID and version ID with the given parameters
+//	@Tags			articles
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			Authorization		header		string								false	"fill with Bearer token. The token can be accessed via api /auth/login. If authorization is not provided, the default behavior is showing only published articles. Otherwise, if the token is present and the user has permission to read drafted and archived articles, the token can be used to access draft, published, and archived articles. "//	@Param	articleID	path	int	true	"Article ID"
+//	@Param			articleVersionID	path		int									true	"Article Version ID"
+//	@Param			body				body		params.CreateArticleVersionRequest	true	"Create Article Version Request"
+//	@Success		201					{object}	params.CreateArticleVersionResponse
+//	@Failure		400					{object}	errs.ValidationError
+//	@Failure		500					{object}	string
+//	@Router			/articles/{articleID}/versions/{articleVersionID} [post]
 func (ah *ArticleHandler) CreateNewArticleVersionWithReferenceFromArticleIDAndVersionID(w http.ResponseWriter, r *http.Request) {
 	articleIDParam := chi.URLParam(r, "articleID")
 	articleVersionIDParam := chi.URLParam(r, "articleVersionID")
@@ -167,9 +237,22 @@ func (ah *ArticleHandler) CreateNewArticleVersionWithReferenceFromArticleIDAndVe
 		return
 	}
 
-	sendSuccessResponse(w, http.StatusOK, newArticleVersion)
+	sendSuccessResponse(w, http.StatusCreated, newArticleVersion)
 }
 
+// GetArticleDetailHandler
+//
+//	@Summary		Get article detail by ID
+//	@Description	Get article detail with the given ID
+//	@Tags			articles
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			Authorization	header		string	false	"fill with Bearer token. The token can be accessed via api /auth/login. If authorization is not provided, the default behavior is showing only published articles. Otherwise, if the token is present and the user has permission to read drafted and archived articles, the token can be used to access draft, published, and archived articles. "//	@Param	articleID	path	int	true	"Article ID"
+//	@Success		200				{object}	params.GetArticleDetailResponse
+//	@Failure		400				{object}	errs.ValidationError
+//	@Failure		500				{object}	object
+//	@Router			/articles/{articleID} [get]
 func (ah *ArticleHandler) GetArticleDetailHandler(w http.ResponseWriter, r *http.Request) {
 	articleIDParam := chi.URLParam(r, "articleID")
 
@@ -189,6 +272,20 @@ func (ah *ArticleHandler) GetArticleDetailHandler(w http.ResponseWriter, r *http
 	sendSuccessResponse(w, http.StatusOK, articleDetail)
 }
 
+// GetArticleVersionWithIDAndArticleID
+//
+//	@Summary		Get article version by ID and article ID
+//	@Description	Get article version with the given article ID and article version ID
+//	@Tags			articles
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			Authorization		header		string	false	"fill with Bearer token. The token can be accessed via api /auth/login. If authorization is not provided, the default behavior is showing only published articles. Otherwise, if the token is present and the user has permission to read drafted and archived articles, the token can be used to access draft, published, and archived articles. "//	@Param	articleID	path	int	true	"Article ID"
+//	@Param			articleVersionID	path		int		true	"Article Version ID"
+//	@Success		200					{object}	params.ArticleVersionResponse
+//	@Failure		400					{object}	errs.ValidationError
+//	@Failure		500					{object}	string
+//	@Router			/articles/{articleID}/versions/{articleVersionID} [get]
 func (ah *ArticleHandler) GetArticleVersionWithIDAndArticleID(w http.ResponseWriter, r *http.Request) {
 	articleIDParam := chi.URLParam(r, "articleID")
 	articleVersionIDParam := chi.URLParam(r, "articleVersionID")
@@ -216,6 +313,19 @@ func (ah *ArticleHandler) GetArticleVersionWithIDAndArticleID(w http.ResponseWri
 	sendSuccessResponse(w, http.StatusOK, articleVersion)
 }
 
+// GetArticleVersionsHandler
+//
+//	@Summary		Get all versions of an article by ID
+//	@Description	Get all versions of an article with the given ID
+//	@Tags			articles
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			Authorization	header		string	false	"fill with Bearer token. The token can be accessed via api /auth/login. If authorization is not provided, the default behavior is showing only published articles. Otherwise, if the token is present and the user has permission to read drafted and archived articles, the token can be used to access draft, published, and archived articles. "
+//	@Success		200				{array}		params.ArticleVersionResponse
+//	@Failure		400				{object}	errs.ValidationError
+//	@Failure		500				{object}	object
+//	@Router			/articles/{articleID}/versions [get]
 func (ah *ArticleHandler) GetArticleVersionsHandler(w http.ResponseWriter, r *http.Request) {
 	articleIDParam := chi.URLParam(r, "articleID")
 	articleID, err := strconv.Atoi(articleIDParam)
@@ -234,6 +344,26 @@ func (ah *ArticleHandler) GetArticleVersionsHandler(w http.ResponseWriter, r *ht
 	sendSuccessResponse(w, http.StatusOK, articleVersions)
 }
 
+// GetArticlesHandler
+//
+//	@Summary		Get all articles with optional filters
+//	@Description	Get all articles with optional filters
+//	@Tags			articles
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			Authorization	header		string		false	"fill with Bearer token. The token can be accessed via api /auth/login. If authorization is not provided, the default behavior is showing only published articles. Otherwise, if the token is present and the user has permission to read drafted and archived articles, the token can be used to access draft, published, and archived articles. "
+//	@Param			search			query		string		false	"Search query"
+//	@Param			sorts			query		[]string	false	"article_id:asc | article_id:desc |	article_version_id:asc | article_version_id:desc |	created_by:asc | created_by:desc |	updated_by:asc | updated_by:desc |	title:asc | title:desc |	status:asc | status:desc |	version:asc | version:desc | created_at:asc | created_at:desc | updated_at:asc | updated_at:desc | tag_relationship_score:asc | tag_relationship_score:desc"
+//	@Param			limit			query		int			false	"Limit"
+//	@Param			page			query		int			false	"Page number"
+//	@Param			status			query		int			false	"Status 0 for draft, 1 for published, 2 for archived (comma-separated, integer values)"
+//	@Param			created_by		query		string		false	"Created by (comma-separated, UUID values)"
+//	@Param			updated_by		query		string		false	"Updated by (comma-separated, UUID values)"
+//	@Success		200				{array}		params.ArticleVersionResponse
+//	@Failure		400				{object}	errs.ValidationError
+//	@Failure		500				{object}	object
+//	@Router			/articles [get]
 func (ah *ArticleHandler) GetArticlesHandler(w http.ResponseWriter, r *http.Request) {
 
 	searchQuery := r.URL.Query().Get("search")

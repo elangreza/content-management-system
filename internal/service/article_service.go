@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"reflect"
 	"slices"
@@ -90,6 +91,9 @@ func (as *ArticleService) UpdateStatusArticle(ctx context.Context, articleID, ar
 
 	articleVersion, err := as.articleRepo.GetArticleVersionWithIDAndArticleID(ctx, articleID, articleVersionID)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return errs.NotFound{Message: "either article or article version"}
+		}
 		return err
 	}
 
@@ -129,6 +133,9 @@ func (as *ArticleService) CreateArticleVersionWithReferenceFromArticleID(ctx con
 
 	article, err := as.articleRepo.GetArticleWithID(ctx, articleID)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, errs.NotFound{Message: "article"}
+		}
 		return nil, err
 	}
 
@@ -188,11 +195,17 @@ func (as *ArticleService) CreateArticleVersionWithReferenceFromArticleIDAindVers
 
 	article, err := as.articleRepo.GetArticleWithID(ctx, articleID)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, errs.NotFound{Message: "article"}
+		}
 		return nil, err
 	}
 
 	articleVersion, err := as.articleRepo.GetArticleVersionWithIDAndArticleID(ctx, articleID, articleVersionID)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, errs.NotFound{Message: "either article or article version"}
+		}
 		return nil, err
 	}
 
@@ -228,6 +241,9 @@ func (as *ArticleService) CreateArticleVersionWithReferenceFromArticleIDAindVers
 func (as *ArticleService) GetArticleWithID(ctx context.Context, articleID int64) (*params.GetArticleDetailResponse, error) {
 	article, err := as.articleRepo.GetArticleWithID(ctx, articleID)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, errs.NotFound{Message: "article"}
+		}
 		return nil, err
 	}
 
@@ -359,6 +375,9 @@ func (as *ArticleService) GetArticleWithID(ctx context.Context, articleID int64)
 func (as *ArticleService) GetArticleVersionWithIDAndArticleID(ctx context.Context, articleID int64, articleVersionID int64) (*params.ArticleVersionResponse, error) {
 	articleVersion, err := as.articleRepo.GetArticleVersionWithIDAndArticleID(ctx, articleID, articleVersionID)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, errs.NotFound{Message: "either article or article version"}
+		}
 		return nil, err
 	}
 

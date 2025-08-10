@@ -30,18 +30,18 @@ func (pqr *PaginationParams) Validate() error {
 	}
 
 	if len(pqr.Sorts) > 0 {
-		// newSorts := []string{}
-		// for _, sort := range pqr.Sorts {
-		// 	if strings.Contains(sort, ",") {
-		// 		newSorts = append(newSorts, strings.Split(sort, ",")...)
-		// 	} else {
-		// 		newSorts = append(newSorts, sort)
-		// 	}
-		// }
+		newSorts := []string{}
+		for _, sort := range pqr.Sorts {
+			if strings.Contains(sort, ",") {
+				newSorts = append(newSorts, strings.Split(sort, ",")...)
+			} else {
+				newSorts = append(newSorts, sort)
+			}
+		}
 
 		// pqr.sortMap = make(map[string]string)
-		pqr.sortDirections = make([]string, len(pqr.Sorts))
-		for index, sortRaw := range pqr.Sorts {
+		pqr.sortDirections = make([]string, len(newSorts))
+		for index, sortRaw := range newSorts {
 			parts := strings.Split(sortRaw, ":")
 			if len(parts) != 2 {
 				return fmt.Errorf("%s is not valid sort format", sortRaw)

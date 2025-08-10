@@ -18,41 +18,43 @@ services:
       retries: 5
       start_period: 30s
       timeout: 10s
-  # migrate:
-  #   image: migrate/migrate
-  #   env_file:
-  #     - .env
-  #   networks:
-  #     - cms
-  #   volumes:
-  #     - ./migrations:/migrations
-  #   depends_on:
-  #     database:
-  #       condition: service_healthy
-  #       restart: true
-  #   command:
-  #     [
-  #       "-path",
-  #       "./migrations",
-  #       "-database",
-  #       "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@database:${POSTGRES_PORT}/${POSTGRES_DB}?sslmode=${POSTGRES_SSL}",
-  #       "up",
-  #     ]
-  # app:
-  #   networks:
-  #     - cms
-  #   ports:
-  #     - "8080:8080"
-  #   build: .
-  #   container_name: app
-  #   env_file:
-  #     - .env
-  #   depends_on:
-  #     database:
-  #       condition: service_healthy
-  #       restart: true
-  #     redis:
-  #       condition: service_started
+  migrate:
+    container_name: cms-migrate
+    image: migrate/migrate
+    env_file:
+      - docker.env
+    networks:
+      - cms
+    volumes:
+      - ./db/migration:/migration
+    depends_on:
+      database:
+        condition: service_healthy
+        restart: true
+    command:
+      [
+        "-path",
+        "./migration",
+        "-database",
+        "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@cms-database:${POSTGRES_PORT}/${POSTGRES_DB}?sslmode=${POSTGRES_SSL}",
+        "up",
+      ]
+  app:
+    networks:
+      - cms
+    ports:
+      - ${HTTP_PORT}:${HTTP_PORT}
+    build: .
+    container_name: cmsapp
+    restart: on-failure:3
+    env_file:
+      - docker.env
+    depends_on:
+      database:
+        condition: service_healthy
+        restart: true
+      redis:
+        condition: service_started
 networks:
   cms:
     driver: bridge

@@ -23,6 +23,20 @@ type (
 	}
 )
 
+// CreateTagHandler creates a new tag.
+//
+//	@Summary		Create Tag
+//	@Description	Create a new tag with the provided names.
+//	@Tags			Tags
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			Authorization	header		string					false	"fill with Bearer token. The token can be accessed via api /auth/login. If authorization is not provided, the default behavior is showing only published articles. Otherwise if the token is appered and user habe a permission to read drafted and archiver article, the token can be used to accessing draft, published, and archived articles. "
+//	@Param			body			body		params.CreateTagRequest	true	"Create Tag Request"
+//	@Success		201				{string}	string					"created"
+//	@Failure		400				{object}	errs.ValidationError
+//	@Failure		500				{object}	APIError
+//	@Router			/tags [post]
 func (ah *TagHandler) CreateTagHandler(w http.ResponseWriter, r *http.Request) {
 
 	body := params.CreateTagRequest{}
@@ -31,11 +45,10 @@ func (ah *TagHandler) CreateTagHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// TODO validation
-	// if err := body.Validate(); err != nil {
-	// 	Error(w, http.StatusBadRequest, err)
-	// 	return
-	// }
+	if err := body.Validate(); err != nil {
+		sendErrorResponse(w, http.StatusBadRequest, err)
+		return
+	}
 
 	err := ah.svc.CreateTag(r.Context(), body.Names...)
 	if err != nil {
@@ -46,6 +59,20 @@ func (ah *TagHandler) CreateTagHandler(w http.ResponseWriter, r *http.Request) {
 	sendSuccessResponse(w, http.StatusCreated, "created")
 }
 
+// GetTagsHandler retrieves a list of tags with optional sorting.
+//
+//	@Summary		Get Tags
+//	@Description	Retrieve a list of tags with optional sorting.
+//	@Tags			Tags
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			Authorization	header		string	false	"fill with Bearer token. The token can be accessed via api /auth/login. If authorization is not provided, the default behavior is showing only published articles. Otherwise if the token is appered and user habe a permission to read drafted and archiver article, the token can be used to accessing draft, published, and archived articles. "
+//	@Param			sort			query		string	false	"Sort by usage_count:asc | usage_count:desc | trending_score:asc | trending_score:desc | name:asc | name:desc | last_used:asc | last_used:desc"
+//	@Success		200				{array}		params.GetTagResponse
+//	@Failure		400				{object}	errs.ValidationError
+//	@Failure		500				{object}	APIError
+//	@Router			/tags [get]
 func (ah *TagHandler) GetTagsHandler(w http.ResponseWriter, r *http.Request) {
 
 	sort := r.URL.Query().Get("sort")
@@ -84,6 +111,20 @@ func (ah *TagHandler) GetTagsHandler(w http.ResponseWriter, r *http.Request) {
 	sendSuccessResponse(w, http.StatusOK, tags)
 }
 
+// GetTagHandler retrieves a specific tag by name.
+//
+//	@Summary		Get Tag
+//	@Description	Retrieve a specific tag by name.
+//	@Tags			Tags
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			Authorization	header		string	false	"fill with Bearer token. The token can be accessed via api /auth/login. If authorization is not provided, the default behavior is showing only published articles. Otherwise if the token is appered and user habe a permission to read drafted and archiver article, the token can be used to accessing draft, published, and archived articles. "
+//	@Param			name			path		string	true	"Tag name"
+//	@Success		200				{object}	params.GetTagResponse
+//	@Failure		400				{object}	errs.ValidationError
+//	@Failure		500				{object}	APIError
+//	@Router			/tags/{name} [get]
 func (ah *TagHandler) GetTagHandler(w http.ResponseWriter, r *http.Request) {
 	tagName := chi.URLParam(r, "name")
 	if tagName == "" {

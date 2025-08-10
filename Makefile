@@ -17,4 +17,13 @@ migrate-create:
 gen:
 	go generate ./...
 
-.PHONY: migrate migrate-create run
+up:
+	cp ./env.example docker.env
+	docker compose --env-file docker.env up -d --build
+	cat ./db/seed/seed_1.sql | docker exec -i cms-database psql -h localhost -U cms -f-
+
+swag:
+	swag fmt
+	swag init -g cmd/server/main.go
+
+.PHONY: migrate migrate-create run swag gen up

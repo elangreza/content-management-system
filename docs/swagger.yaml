@@ -1,0 +1,708 @@
+definitions:
+  errs.ValidationError:
+    properties:
+      message:
+        type: string
+    type: object
+  params.ArticleVersionResponse:
+    properties:
+      article_id:
+        type: integer
+      article_version_id:
+        type: integer
+      body:
+        type: string
+      created_at:
+        type: string
+      created_by:
+        type: string
+      status:
+        type: integer
+      tag_relationship_score:
+        type: number
+      tags:
+        items:
+          type: string
+        type: array
+      title:
+        type: string
+      updated_at:
+        type: string
+      updated_by:
+        type: string
+      version:
+        type: integer
+    type: object
+  params.CreateArticleResponse:
+    properties:
+      article_id:
+        type: integer
+      article_version_id:
+        type: integer
+    type: object
+  params.CreateArticleVersionRequest:
+    properties:
+      body:
+        type: string
+      tags:
+        items:
+          type: string
+        type: array
+      title:
+        type: string
+    type: object
+  params.CreateArticleVersionResponse:
+    properties:
+      article_version_id:
+        type: integer
+    type: object
+  params.CreateTagRequest:
+    properties:
+      names:
+        items:
+          type: string
+        type: array
+    type: object
+  params.GetArticleDetailResponse:
+    properties:
+      archived_version:
+        $ref: '#/definitions/params.ArticleVersionResponse'
+      created_at:
+        type: string
+      created_by:
+        type: string
+      drafted_version:
+        $ref: '#/definitions/params.ArticleVersionResponse'
+      id:
+        type: integer
+      published_version:
+        $ref: '#/definitions/params.ArticleVersionResponse'
+      updated_at:
+        type: string
+      updated_by:
+        type: string
+    type: object
+  params.GetTagResponse:
+    properties:
+      last_used:
+        type: string
+      name:
+        type: string
+      trending_score:
+        type: number
+      usage_count:
+        type: integer
+    type: object
+  params.LoginUserRequest:
+    properties:
+      email:
+        type: string
+      password:
+        type: string
+    type: object
+  params.RegisterUserRequest:
+    properties:
+      email:
+        type: string
+      name:
+        type: string
+      password:
+        type: string
+    type: object
+  params.UpdateArticleStatusRequest:
+    properties:
+      status:
+        type: integer
+    type: object
+  params.UserProfileResponse:
+    properties:
+      created_at:
+        type: string
+      email:
+        type: string
+      name:
+        type: string
+      role:
+        type: integer
+      role_name:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  rest.APIError:
+    properties:
+      error:
+        type: string
+    type: object
+info:
+  contact:
+    email: mrezaelange@gmail.com
+    name: reza
+  description: 'JWT Authorization header using the Bearer scheme. Example: "Authorization:
+    Bearer {token}"'
+  title: Content Management System API
+  version: "1.0"
+paths:
+  /articles:
+    get:
+      consumes:
+      - application/json
+      description: Get all articles with optional filters
+      parameters:
+      - description: fill with Bearer token. The token can be accessed via api /auth/login.
+          For accessing draft, published, and archived articles. If authorization
+          is not provided default is showing published articles
+        in: header
+        name: Authorization
+        type: string
+      - description: Search query
+        in: query
+        name: search
+        type: string
+      - collectionFormat: csv
+        description: "article_id:asc | article_id:desc |\tarticle_version_id:asc |
+          article_version_id:desc |\tcreated_by:asc | created_by:desc |\tupdated_by:asc
+          | updated_by:desc |\ttitle:asc | title:desc |\tstatus:asc | status:desc
+          |\tversion:asc | version:desc | created_at:asc | created_at:desc | updated_at:asc
+          | updated_at:desc | tag_relationship_score:asc | tag_relationship_score:desc"
+        in: query
+        items:
+          type: string
+        name: sorts
+        type: array
+      - description: Limit
+        in: query
+        name: limit
+        type: integer
+      - description: Page number
+        in: query
+        name: page
+        type: integer
+      - description: Status 0 for draft, 1 for published, 2 for archived (comma-separated,
+          integer values)
+        in: query
+        name: status
+        type: integer
+      - description: Created by (comma-separated, UUID values)
+        in: query
+        name: created_by
+        type: string
+      - description: Updated by (comma-separated, UUID values)
+        in: query
+        name: updated_by
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/params.ArticleVersionResponse'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/errs.ValidationError'
+        "500":
+          description: Internal Server Error
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get all articles with optional filters
+      tags:
+      - articles
+    post:
+      consumes:
+      - application/json
+      description: Create a new article with the given parameters
+      parameters:
+      - description: fill with Bearer token. The token can be accessed via api /auth/login.
+          For accessing draft, published, and archived articles. If authorization
+          is not provided default is showing published articles
+        in: header
+        name: Authorization
+        type: string
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/params.CreateArticleResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/errs.ValidationError'
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Create a new article
+      tags:
+      - articles
+  /articles/{articleID}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete an article with the given ID
+      parameters:
+      - description: fill with Bearer token. The token can be accessed via api /auth/login.
+          For accessing draft, published, and archived articles. If authorization
+          is not provided default is showing published articles
+        in: header
+        name: Authorization
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ok
+          schema:
+            type: string
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/errs.ValidationError'
+        "500":
+          description: Internal Server Error
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete an article by ID
+      tags:
+      - articles
+    get:
+      consumes:
+      - application/json
+      description: Get article detail with the given ID
+      parameters:
+      - description: fill with Bearer token. The token can be accessed via api /auth/login.
+          For accessing draft, published, and archived articles. If authorization
+          is not provided default is showing published articles
+        in: header
+        name: Authorization
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/params.GetArticleDetailResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/errs.ValidationError'
+        "500":
+          description: Internal Server Error
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get article detail by ID
+      tags:
+      - articles
+  /articles/{articleID}/versions:
+    get:
+      consumes:
+      - application/json
+      description: Get all versions of an article with the given ID
+      parameters:
+      - description: fill with Bearer token. The token can be accessed via api /auth/login.
+          For accessing draft, published, and archived articles. If authorization
+          is not provided default is showing published articles
+        in: header
+        name: Authorization
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/params.ArticleVersionResponse'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/errs.ValidationError'
+        "500":
+          description: Internal Server Error
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get all versions of an article by ID
+      tags:
+      - articles
+    post:
+      consumes:
+      - application/json
+      description: Create a new article version with reference from an article ID
+        with the given parameters
+      parameters:
+      - description: fill with Bearer token. The token can be accessed via api /auth/login.
+          For accessing draft, published, and archived articles. If authorization
+          is not provided default is showing published articles
+        in: header
+        name: Authorization
+        type: string
+      - description: Create Article Version Request
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/params.CreateArticleVersionRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/params.CreateArticleVersionResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/errs.ValidationError'
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Create a new article version with reference from an article ID
+      tags:
+      - articles
+  /articles/{articleID}/versions/{articleVersionID}:
+    get:
+      consumes:
+      - application/json
+      description: Get article version with the given article ID and article version
+        ID
+      parameters:
+      - description: fill with Bearer token. The token can be accessed via api /auth/login.
+          For accessing draft, published, and archived articles. If authorization
+          is not provided default is showing published articles
+        in: header
+        name: Authorization
+        type: string
+      - description: Article Version ID
+        in: path
+        name: articleVersionID
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/params.ArticleVersionResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/errs.ValidationError'
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Get article version by ID and article ID
+      tags:
+      - articles
+    post:
+      consumes:
+      - application/json
+      description: Create a new article version with reference from an article ID
+        and version ID with the given parameters
+      parameters:
+      - description: fill with Bearer token. The token can be accessed via api /auth/login.
+          For accessing draft, published, and archived articles. If authorization
+          is not provided default is showing published articles
+        in: header
+        name: Authorization
+        type: string
+      - description: Article Version ID
+        in: path
+        name: articleVersionID
+        required: true
+        type: integer
+      - description: Create Article Version Request
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/params.CreateArticleVersionRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/params.CreateArticleVersionResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/errs.ValidationError'
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Create a new article version with reference from an article ID and
+        version ID
+      tags:
+      - articles
+  /articles/{articleID}/versions/{articleVersionID}/status:
+    put:
+      consumes:
+      - application/json
+      description: Update the status of an article version with the given parameters
+      parameters:
+      - description: fill with Bearer token. The token can be accessed via api /auth/login.
+          For accessing draft, published, and archived articles. If authorization
+          is not provided default is showing published articles
+        in: header
+        name: Authorization
+        type: string
+      - description: Article Version ID
+        in: path
+        name: articleVersionID
+        required: true
+        type: integer
+      - description: Update Article Status Request
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/params.UpdateArticleStatusRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ok
+          schema:
+            type: string
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/errs.ValidationError'
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Update the status of an article version
+      tags:
+      - articles
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Authenticate a user with email and password.
+      parameters:
+      - description: Login User Request
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/params.LoginUserRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ok
+          schema:
+            type: string
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/errs.ValidationError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/rest.APIError'
+      summary: Login User
+      tags:
+      - Auth
+  /auth/register:
+    post:
+      consumes:
+      - application/json
+      description: Register a new user with the provided details.
+      parameters:
+      - description: Register User Request
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/params.RegisterUserRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: ok
+          schema:
+            type: string
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/errs.ValidationError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/rest.APIError'
+      summary: Register User
+      tags:
+      - Auth
+  /profile:
+    get:
+      consumes:
+      - application/json
+      description: Get the profile of the authenticated user.
+      parameters:
+      - description: fill with Bearer token for accessing draft, published, and archived
+          articles. If authorization is not provided default is showing published
+          articles
+        in: header
+        name: Authorization
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/params.UserProfileResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/rest.APIError'
+      security:
+      - BearerAuth: []
+      summary: Get User Profile
+      tags:
+      - Profile
+  /tags:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve a list of tags with optional sorting.
+      parameters:
+      - description: fill with Bearer token. The token can be accessed via api /auth/login.
+          For accessing draft, published, and archived articles. If authorization
+          is not provided default is showing published articles
+        in: header
+        name: Authorization
+        type: string
+      - description: Sort by usage_count:asc | usage_count:desc | trending_score:asc
+          | trending_score:desc | name:asc | name:desc | last_used:asc | last_used:desc
+        in: query
+        name: sort
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/params.GetTagResponse'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/errs.ValidationError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/rest.APIError'
+      security:
+      - BearerAuth: []
+      summary: Get Tags
+      tags:
+      - Tags
+    post:
+      consumes:
+      - application/json
+      description: Create a new tag with the provided names.
+      parameters:
+      - description: fill with Bearer token. The token can be accessed via api /auth/login.
+          For accessing draft, published, and archived articles. If authorization
+          is not provided default is showing published articles
+        in: header
+        name: Authorization
+        type: string
+      - description: Create Tag Request
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/params.CreateTagRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: created
+          schema:
+            type: string
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/errs.ValidationError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/rest.APIError'
+      security:
+      - BearerAuth: []
+      summary: Create Tag
+      tags:
+      - Tags
+  /tags/{name}:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve a specific tag by name.
+      parameters:
+      - description: fill with Bearer token. The token can be accessed via api /auth/login.
+          For accessing draft, published, and archived articles. If authorization
+          is not provided default is showing published articles
+        in: header
+        name: Authorization
+        type: string
+      - description: Tag name
+        in: path
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/params.GetTagResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/errs.ValidationError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/rest.APIError'
+      security:
+      - BearerAuth: []
+      summary: Get Tag
+      tags:
+      - Tags
+swagger: "2.0"

@@ -21,7 +21,7 @@ type (
 	}
 )
 
-func NewAuthRouter(ar chi.Router, authService AutService) {
+func NewAuthHandler(ar chi.Router, authService AutService) {
 
 	authHandler := AuthHandler{
 		svc: authService,
@@ -33,6 +33,18 @@ func NewAuthRouter(ar chi.Router, authService AutService) {
 	})
 }
 
+// RegisterUser handles user registration.
+//
+//	@Summary		Register User
+//	@Description	Register a new user with the provided details.
+//	@Tags			Auth
+//	@Accept			json
+//	@Produce		json
+//	@Param			body	body		params.RegisterUserRequest	true	"Register User Request"
+//	@Success		201		{string}	string						"ok"
+//	@Failure		400		{object}	errs.ValidationError
+//	@Failure		500		{object}	APIError
+//	@Router			/auth/register [post]
 func (ah *AuthHandler) RegisterUser(w http.ResponseWriter, r *http.Request) {
 	body := params.RegisterUserRequest{}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
@@ -40,11 +52,10 @@ func (ah *AuthHandler) RegisterUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// TODO validation
-	// if err := body.Validate(); err != nil {
-	// 	Error(w, http.StatusBadRequest, err)
-	// 	return
-	// }
+	if err := body.Validate(); err != nil {
+		sendErrorResponse(w, http.StatusBadRequest, err)
+		return
+	}
 
 	err := ah.svc.RegisterUser(r.Context(), body)
 	if err != nil {
@@ -55,6 +66,18 @@ func (ah *AuthHandler) RegisterUser(w http.ResponseWriter, r *http.Request) {
 	sendSuccessResponse(w, http.StatusCreated, "ok")
 }
 
+// LoginUser handles user login.
+//
+//	@Summary		Login User
+//	@Description	Authenticate a user with email and password.
+//	@Tags			Auth
+//	@Accept			json
+//	@Produce		json
+//	@Param			body	body		params.LoginUserRequest	true	"Login User Request"
+//	@Success		200		{string}	string					"ok"
+//	@Failure		400		{object}	errs.ValidationError
+//	@Failure		500		{object}	APIError
+//	@Router			/auth/login [post]
 func (ah *AuthHandler) LoginUser(w http.ResponseWriter, r *http.Request) {
 	body := params.LoginUserRequest{}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
@@ -62,11 +85,10 @@ func (ah *AuthHandler) LoginUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// TODO validation
-	// if err := body.Validate(); err != nil {
-	// 	Error(w, http.StatusBadRequest, err)
-	// 	return
-	// }
+	if err := body.Validate(); err != nil {
+		sendErrorResponse(w, http.StatusBadRequest, err)
+		return
+	}
 
 	res, err := ah.svc.LoginUser(r.Context(), body)
 	if err != nil {
