@@ -25,7 +25,7 @@ type (
 //	@Accept			json
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			Authorization	header		string	false	"fill with Bearer token for accessing draft, published, and archived articles. If authorization is not provided default is showing published articles"
+//	@Param			Authorization	header		string	false	"Fill with bearer and token for accessing draft, published, and archived articles. If authorization is not provided default is showing published articles"
 //	@Success		200				{object}	params.UserProfileResponse
 //	@Failure		500				{object}	APIError
 //	@Router			/profile [get]

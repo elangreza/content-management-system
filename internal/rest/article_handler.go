@@ -40,7 +40,7 @@ type (
 //	@Accept			json
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			Authorization	header		string						true	"MUST HAVE PERMISSION CreateArticle. Fill with Bearer token. The token can be accessed via api /auth/login."
+//	@Param			Authorization	header		string						true	"MUST HAVE PERMISSION CreateArticle. Fill with bearer and token. The token can be accessed via api /auth/login."
 //	@Param			body			body		params.CreateArticleRequest	true	"Create Article Request"
 //	@Success		201				{object}	params.CreateArticleResponse
 //	@Failure		400				{object}	errs.ValidationError
@@ -76,7 +76,8 @@ func (ah *ArticleHandler) CreateArticleHandler(w http.ResponseWriter, r *http.Re
 //	@Accept			json
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			Authorization	header		string	true	"MUST HAVE PERMISSION DeleteArticle. Fill with Bearer token. The token can be accessed via api /auth/login."
+//	@Param			Authorization	header		string	true	"MUST HAVE PERMISSION DeleteArticle. Fill with bearer and token. The token can be accessed via api /auth/login."
+//	@Param			articleID		path		int		true	"Article ID"
 //	@Success		200				{string}	string	"ok"
 //	@Failure		400				{object}	errs.ValidationError
 //	@Failure		500				{object}	object
@@ -109,7 +110,8 @@ func (ah *ArticleHandler) DeleteArticleHandler(w http.ResponseWriter, r *http.Re
 //	@Accept			json
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			Authorization		header		string								true	"MUST HAVE PERMISSION UpdateStatusArticle. Fill with Bearer token. The token can be accessed via api /auth/login."
+//	@Param			Authorization		header		string								true	"MUST HAVE PERMISSION UpdateStatusArticle. Fill with bearer and token. The token can be accessed via api /auth/login."
+//	@Param			articleID			path		int									true	"Article ID"
 //	@Param			articleVersionID	path		int									true	"Article Version ID"
 //	@Param			body				body		params.UpdateArticleStatusRequest	true	"Update Article Status Request"
 //	@Success		200					{string}	string								"ok"
@@ -163,12 +165,13 @@ func (ah *ArticleHandler) UpdateArticleStatusHandler(w http.ResponseWriter, r *h
 //	@Accept			json
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			Authorization	header		string								true	"MUST HAVE PERMISSION CreateArticle. Fill with Bearer token. The token can be accessed via api /auth/login."
+//	@Param			Authorization	header		string								true	"MUST HAVE PERMISSION CreateArticle. Fill with bearer and token. The token can be accessed via api /auth/login."
+//	@Param			articleID		path		int									true	"Article ID"
 //	@Param			body			body		params.CreateArticleVersionRequest	true	"Create Article Version Request"
 //	@Success		201				{object}	params.CreateArticleVersionResponse
 //	@Failure		400				{object}	errs.ValidationError
 //	@Failure		500				{object}	string
-//	@Router			/articles/{articleID}/versions [post]
+//	@Router			/articles/{articleID} [post]
 func (ah *ArticleHandler) CreateNewArticleVersionWithReferenceFromArticleID(w http.ResponseWriter, r *http.Request) {
 	articleIDParam := chi.URLParam(r, "articleID")
 
@@ -201,7 +204,8 @@ func (ah *ArticleHandler) CreateNewArticleVersionWithReferenceFromArticleID(w ht
 //	@Accept			json
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			Authorization		header		string								true	"MUST HAVE PERMISSION CreateArticle. Fill with Bearer token. The token can be accessed via api /auth/login."
+//	@Param			Authorization		header		string								true	"MUST HAVE PERMISSION CreateArticle. Fill with bearer and token. The token can be accessed via api /auth/login."
+//	@Param			articleID			path		int									true	"Article ID"
 //	@Param			articleVersionID	path		int									true	"Article Version ID"
 //	@Param			body				body		params.CreateArticleVersionRequest	true	"Create Article Version Request"
 //	@Success		201					{object}	params.CreateArticleVersionResponse
@@ -249,7 +253,8 @@ func (ah *ArticleHandler) CreateNewArticleVersionWithReferenceFromArticleIDAndVe
 //	@Accept			json
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			Authorization	header		string	false	"fill with Bearer token. The token can be accessed via api /auth/login. If authorization is not provided, the default behavior is showing only published articles. Otherwise, if the token is present and the user has permission to read drafted and archived articles, the token can be used to access draft, published, and archived articles. "//	@Param	articleID	path	int	true	"Article ID"
+//	@Param			Authorization	header		string	false	"Fill with bearer and token. The token can be accessed via api /auth/login. If authorization is not provided, the default behavior is showing only published articles. Otherwise, if the token is present and the user has permission to read drafted and archived articles, the token can be used to access draft, published, and archived articles. "//	@Param	articleID	path	int	true	"Article ID"
+//	@Param			articleID		path		int		true	"Article ID"
 //	@Success		200				{object}	params.GetArticleDetailResponse
 //	@Failure		400				{object}	errs.ValidationError
 //	@Failure		500				{object}	object
@@ -281,7 +286,8 @@ func (ah *ArticleHandler) GetArticleDetailHandler(w http.ResponseWriter, r *http
 //	@Accept			json
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			Authorization		header		string	false	"fill with Bearer token. The token can be accessed via api /auth/login. If authorization is not provided, the default behavior is showing only published articles. Otherwise, if the token is present and the user has permission to read drafted and archived articles, the token can be used to access draft, published, and archived articles. "//	@Param	articleID	path	int	true	"Article ID"
+//	@Param			Authorization		header		string	false	"Fill with bearer and token. The token can be accessed via api /auth/login. If authorization is not provided, the default behavior is showing only published articles. Otherwise, if the token is present and the user has permission to read drafted and archived articles, the token can be used to access draft, published, and archived articles. "//	@Param	articleID	path	int	true	"Article ID"
+//	@Param			articleID			path		int		true	"Article ID"
 //	@Param			articleVersionID	path		int		true	"Article Version ID"
 //	@Success		200					{object}	params.ArticleVersionResponse
 //	@Failure		400					{object}	errs.ValidationError
@@ -322,7 +328,8 @@ func (ah *ArticleHandler) GetArticleVersionWithIDAndArticleID(w http.ResponseWri
 //	@Accept			json
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			Authorization	header		string	false	"fill with Bearer token. The token can be accessed via api /auth/login. If authorization is not provided, the default behavior is showing only published articles. Otherwise, if the token is present and the user has permission to read drafted and archived articles, the token can be used to access draft, published, and archived articles. "
+//	@Param			Authorization	header		string	false	"Fill with bearer and token. The token can be accessed via api /auth/login. If authorization is not provided, the default behavior is showing only published articles. Otherwise, if the token is present and the user has permission to read drafted and archived articles, the token can be used to access draft, published, and archived articles. "
+//	@Param			articleID		path		int		true	"Article ID"
 //	@Success		200				{array}		params.ArticleVersionResponse
 //	@Failure		400				{object}	errs.ValidationError
 //	@Failure		500				{object}	object
@@ -353,7 +360,7 @@ func (ah *ArticleHandler) GetArticleVersionsHandler(w http.ResponseWriter, r *ht
 //	@Accept			json
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			Authorization	header		string		false	"fill with Bearer token. The token can be accessed via api /auth/login. If authorization is not provided, the default behavior is showing only published articles. Otherwise, if the token is present and the user has permission to read drafted and archived articles, the token can be used to access draft, published, and archived articles. "
+//	@Param			Authorization	header		string		false	"Fill with bearer and token. The token can be accessed via api /auth/login. If authorization is not provided, the default behavior is showing only published articles. Otherwise, if the token is present and the user has permission to read drafted and archived articles, the token can be used to access draft, published, and archived articles. "
 //	@Param			search			query		string		false	"Search query"
 //	@Param			sorts			query		[]string	false	"article_id:asc | article_id:desc |	article_version_id:asc | article_version_id:desc |	created_by:asc | created_by:desc |	updated_by:asc | updated_by:desc |	title:asc | title:desc |	status:asc | status:desc |	version:asc | version:desc | created_at:asc | created_at:desc | updated_at:asc | updated_at:desc | tag_relationship_score:asc | tag_relationship_score:desc"
 //	@Param			limit			query		int			false	"Limit"

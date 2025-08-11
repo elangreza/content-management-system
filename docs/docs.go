@@ -39,7 +39,7 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "fill with Bearer token. The token can be accessed via api /auth/login. If authorization is not provided, the default behavior is showing only published articles. Otherwise, if the token is present and the user has permission to read drafted and archived articles, the token can be used to access draft, published, and archived articles. ",
+                        "description": "Fill with bearer and token. The token can be accessed via api /auth/login. If authorization is not provided, the default behavior is showing only published articles. Otherwise, if the token is present and the user has permission to read drafted and archived articles, the token can be used to access draft, published, and archived articles. ",
                         "name": "Authorization",
                         "in": "header"
                     },
@@ -134,7 +134,7 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "MUST HAVE PERMISSION CreateArticle. Fill with Bearer token. The token can be accessed via api /auth/login.",
+                        "description": "MUST HAVE PERMISSION CreateArticle. Fill with bearer and token. The token can be accessed via api /auth/login.",
                         "name": "Authorization",
                         "in": "header",
                         "required": true
@@ -192,9 +192,16 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "fill with Bearer token. The token can be accessed via api /auth/login. If authorization is not provided, the default behavior is showing only published articles. Otherwise, if the token is present and the user has permission to read drafted and archived articles, the token can be used to access draft, published, and archived articles. ",
+                        "description": "Fill with bearer and token. The token can be accessed via api /auth/login. If authorization is not provided, the default behavior is showing only published articles. Otherwise, if the token is present and the user has permission to read drafted and archived articles, the token can be used to access draft, published, and archived articles. ",
                         "name": "Authorization",
                         "in": "header"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Article ID",
+                        "name": "articleID",
+                        "in": "path",
+                        "required": true
                     }
                 ],
                 "responses": {
@@ -214,6 +221,69 @@ const docTemplate = `{
                         "description": "Internal Server Error",
                         "schema": {
                             "type": "object"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Create a new article version with reference from an article ID with the given parameters",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "articles"
+                ],
+                "summary": "Create a new article version with reference from an article ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "MUST HAVE PERMISSION CreateArticle. Fill with bearer and token. The token can be accessed via api /auth/login.",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Article ID",
+                        "name": "articleID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Create Article Version Request",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/params.CreateArticleVersionRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/params.CreateArticleVersionResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/errs.ValidationError"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "string"
                         }
                     }
                 }
@@ -238,9 +308,16 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "MUST HAVE PERMISSION DeleteArticle. Fill with Bearer token. The token can be accessed via api /auth/login.",
+                        "description": "MUST HAVE PERMISSION DeleteArticle. Fill with bearer and token. The token can be accessed via api /auth/login.",
                         "name": "Authorization",
                         "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Article ID",
+                        "name": "articleID",
+                        "in": "path",
                         "required": true
                     }
                 ],
@@ -287,9 +364,16 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "fill with Bearer token. The token can be accessed via api /auth/login. If authorization is not provided, the default behavior is showing only published articles. Otherwise, if the token is present and the user has permission to read drafted and archived articles, the token can be used to access draft, published, and archived articles. ",
+                        "description": "Fill with bearer and token. The token can be accessed via api /auth/login. If authorization is not provided, the default behavior is showing only published articles. Otherwise, if the token is present and the user has permission to read drafted and archived articles, the token can be used to access draft, published, and archived articles. ",
                         "name": "Authorization",
                         "in": "header"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Article ID",
+                        "name": "articleID",
+                        "in": "path",
+                        "required": true
                     }
                 ],
                 "responses": {
@@ -312,62 +396,6 @@ const docTemplate = `{
                         "description": "Internal Server Error",
                         "schema": {
                             "type": "object"
-                        }
-                    }
-                }
-            },
-            "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Create a new article version with reference from an article ID with the given parameters",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "articles"
-                ],
-                "summary": "Create a new article version with reference from an article ID",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "MUST HAVE PERMISSION CreateArticle. Fill with Bearer token. The token can be accessed via api /auth/login.",
-                        "name": "Authorization",
-                        "in": "header",
-                        "required": true
-                    },
-                    {
-                        "description": "Create Article Version Request",
-                        "name": "body",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/params.CreateArticleVersionRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "201": {
-                        "description": "Created",
-                        "schema": {
-                            "$ref": "#/definitions/params.CreateArticleVersionResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/errs.ValidationError"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "type": "string"
                         }
                     }
                 }
@@ -394,9 +422,16 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "fill with Bearer token. The token can be accessed via api /auth/login. If authorization is not provided, the default behavior is showing only published articles. Otherwise, if the token is present and the user has permission to read drafted and archived articles, the token can be used to access draft, published, and archived articles. ",
+                        "description": "Fill with bearer and token. The token can be accessed via api /auth/login. If authorization is not provided, the default behavior is showing only published articles. Otherwise, if the token is present and the user has permission to read drafted and archived articles, the token can be used to access draft, published, and archived articles. ",
                         "name": "Authorization",
                         "in": "header"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Article ID",
+                        "name": "articleID",
+                        "in": "path",
+                        "required": true
                     },
                     {
                         "type": "integer",
@@ -447,9 +482,16 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "MUST HAVE PERMISSION CreateArticle. Fill with Bearer token. The token can be accessed via api /auth/login.",
+                        "description": "MUST HAVE PERMISSION CreateArticle. Fill with bearer and token. The token can be accessed via api /auth/login.",
                         "name": "Authorization",
                         "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Article ID",
+                        "name": "articleID",
+                        "in": "path",
                         "required": true
                     },
                     {
@@ -512,9 +554,16 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "MUST HAVE PERMISSION UpdateStatusArticle. Fill with Bearer token. The token can be accessed via api /auth/login.",
+                        "description": "MUST HAVE PERMISSION UpdateStatusArticle. Fill with bearer and token. The token can be accessed via api /auth/login.",
                         "name": "Authorization",
                         "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Article ID",
+                        "name": "articleID",
+                        "in": "path",
                         "required": true
                     },
                     {
@@ -669,7 +718,7 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "fill with Bearer token for accessing draft, published, and archived articles. If authorization is not provided default is showing published articles",
+                        "description": "Fill with bearer and token for accessing draft, published, and archived articles. If authorization is not provided default is showing published articles",
                         "name": "Authorization",
                         "in": "header"
                     }
@@ -711,7 +760,7 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "fill with Bearer token. The token can be accessed via api /auth/login. If authorization is not provided, the default behavior is showing only published articles. Otherwise if the token is appered and user habe a permission to read drafted and archiver article, the token can be used to accessing draft, published, and archived articles. ",
+                        "description": "Fill with bearer and token. The token can be accessed via api /auth/login. If authorization is not provided, the default behavior is showing only published articles. Otherwise if the token is appered and user habe a permission to read drafted and archiver article, the token can be used to accessing draft, published, and archived articles. ",
                         "name": "Authorization",
                         "in": "header"
                     },
@@ -766,7 +815,7 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "MUST HAVE PERMISSION CreateArticle. Fill with Bearer token. The token can be accessed via api /auth/login.",
+                        "description": "MUST HAVE PERMISSION CreateArticle. Fill with bearer and token. The token can be accessed via api /auth/login.",
                         "name": "Authorization",
                         "in": "header",
                         "required": true
@@ -824,7 +873,7 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "fill with Bearer token. The token can be accessed via api /auth/login. If authorization is not provided, the default behavior is showing only published articles. Otherwise if the token is appered and user habe a permission to read drafted and archiver article, the token can be used to accessing draft, published, and archived articles. ",
+                        "description": "Fill with bearer and token. The token can be accessed via api /auth/login. If authorization is not provided, the default behavior is showing only published articles. Otherwise if the token is appered and user habe a permission to read drafted and archiver article, the token can be used to accessing draft, published, and archived articles. ",
                         "name": "Authorization",
                         "in": "header"
                     },

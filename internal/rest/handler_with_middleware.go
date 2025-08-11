@@ -41,8 +41,8 @@ func NewHandlerWithMiddleware(
 		r.Group(func(rCreateArticle chi.Router) {
 			rCreateArticle.Use(authMiddleware.MustHavePermission(sharevar.ContentWriter.GetPermissions()...))
 			rCreateArticle.Post("/articles", articleHandler.CreateArticleHandler)
-			rCreateArticle.Put("/articles/{articleID}", articleHandler.CreateNewArticleVersionWithReferenceFromArticleID)
-			rCreateArticle.Put("/articles/{articleID}/versions/{articleVersionID}", articleHandler.CreateNewArticleVersionWithReferenceFromArticleIDAndVersionID)
+			rCreateArticle.Post("/articles/{articleID}", articleHandler.CreateNewArticleVersionWithReferenceFromArticleID)
+			rCreateArticle.Post("/articles/{articleID}/versions/{articleVersionID}", articleHandler.CreateNewArticleVersionWithReferenceFromArticleIDAndVersionID)
 			rCreateArticle.Post("/tags", tagHandler.CreateTagHandler)
 		})
 

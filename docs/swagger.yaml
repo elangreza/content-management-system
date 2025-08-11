@@ -160,11 +160,11 @@ paths:
       - application/json
       description: Get all articles with optional filters
       parameters:
-      - description: 'fill with Bearer token. The token can be accessed via api /auth/login.
-          If authorization is not provided, the default behavior is showing only published
-          articles. Otherwise, if the token is present and the user has permission
-          to read drafted and archived articles, the token can be used to access draft,
-          published, and archived articles. '
+      - description: 'Fill with bearer and token. The token can be accessed via api
+          /auth/login. If authorization is not provided, the default behavior is showing
+          only published articles. Otherwise, if the token is present and the user
+          has permission to read drafted and archived articles, the token can be used
+          to access draft, published, and archived articles. '
         in: header
         name: Authorization
         type: string
@@ -231,8 +231,8 @@ paths:
       - application/json
       description: Create a new article with the given parameters
       parameters:
-      - description: MUST HAVE PERMISSION CreateArticle. Fill with Bearer token. The
-          token can be accessed via api /auth/login.
+      - description: MUST HAVE PERMISSION CreateArticle. Fill with bearer and token.
+          The token can be accessed via api /auth/login.
         in: header
         name: Authorization
         required: true
@@ -269,12 +269,17 @@ paths:
       - application/json
       description: Delete an article with the given ID
       parameters:
-      - description: MUST HAVE PERMISSION DeleteArticle. Fill with Bearer token. The
-          token can be accessed via api /auth/login.
+      - description: MUST HAVE PERMISSION DeleteArticle. Fill with bearer and token.
+          The token can be accessed via api /auth/login.
         in: header
         name: Authorization
         required: true
         type: string
+      - description: Article ID
+        in: path
+        name: articleID
+        required: true
+        type: integer
       produces:
       - application/json
       responses:
@@ -300,14 +305,19 @@ paths:
       - application/json
       description: Get article detail with the given ID
       parameters:
-      - description: 'fill with Bearer token. The token can be accessed via api /auth/login.
-          If authorization is not provided, the default behavior is showing only published
-          articles. Otherwise, if the token is present and the user has permission
-          to read drafted and archived articles, the token can be used to access draft,
-          published, and archived articles. '
+      - description: 'Fill with bearer and token. The token can be accessed via api
+          /auth/login. If authorization is not provided, the default behavior is showing
+          only published articles. Otherwise, if the token is present and the user
+          has permission to read drafted and archived articles, the token can be used
+          to access draft, published, and archived articles. '
         in: header
         name: Authorization
         type: string
+      - description: Article ID
+        in: path
+        name: articleID
+        required: true
+        type: integer
       produces:
       - application/json
       responses:
@@ -328,54 +338,23 @@ paths:
       summary: Get article detail by ID
       tags:
       - articles
-  /articles/{articleID}/versions:
-    get:
-      consumes:
-      - application/json
-      description: Get all versions of an article with the given ID
-      parameters:
-      - description: 'fill with Bearer token. The token can be accessed via api /auth/login.
-          If authorization is not provided, the default behavior is showing only published
-          articles. Otherwise, if the token is present and the user has permission
-          to read drafted and archived articles, the token can be used to access draft,
-          published, and archived articles. '
-        in: header
-        name: Authorization
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            items:
-              $ref: '#/definitions/params.ArticleVersionResponse'
-            type: array
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/errs.ValidationError'
-        "500":
-          description: Internal Server Error
-          schema:
-            type: object
-      security:
-      - BearerAuth: []
-      summary: Get all versions of an article by ID
-      tags:
-      - articles
     post:
       consumes:
       - application/json
       description: Create a new article version with reference from an article ID
         with the given parameters
       parameters:
-      - description: MUST HAVE PERMISSION CreateArticle. Fill with Bearer token. The
-          token can be accessed via api /auth/login.
+      - description: MUST HAVE PERMISSION CreateArticle. Fill with bearer and token.
+          The token can be accessed via api /auth/login.
         in: header
         name: Authorization
         required: true
         type: string
+      - description: Article ID
+        in: path
+        name: articleID
+        required: true
+        type: integer
       - description: Create Article Version Request
         in: body
         name: body
@@ -402,6 +381,47 @@ paths:
       summary: Create a new article version with reference from an article ID
       tags:
       - articles
+  /articles/{articleID}/versions:
+    get:
+      consumes:
+      - application/json
+      description: Get all versions of an article with the given ID
+      parameters:
+      - description: 'Fill with bearer and token. The token can be accessed via api
+          /auth/login. If authorization is not provided, the default behavior is showing
+          only published articles. Otherwise, if the token is present and the user
+          has permission to read drafted and archived articles, the token can be used
+          to access draft, published, and archived articles. '
+        in: header
+        name: Authorization
+        type: string
+      - description: Article ID
+        in: path
+        name: articleID
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/params.ArticleVersionResponse'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/errs.ValidationError'
+        "500":
+          description: Internal Server Error
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get all versions of an article by ID
+      tags:
+      - articles
   /articles/{articleID}/versions/{articleVersionID}:
     get:
       consumes:
@@ -409,14 +429,19 @@ paths:
       description: Get article version with the given article ID and article version
         ID
       parameters:
-      - description: 'fill with Bearer token. The token can be accessed via api /auth/login.
-          If authorization is not provided, the default behavior is showing only published
-          articles. Otherwise, if the token is present and the user has permission
-          to read drafted and archived articles, the token can be used to access draft,
-          published, and archived articles. '
+      - description: 'Fill with bearer and token. The token can be accessed via api
+          /auth/login. If authorization is not provided, the default behavior is showing
+          only published articles. Otherwise, if the token is present and the user
+          has permission to read drafted and archived articles, the token can be used
+          to access draft, published, and archived articles. '
         in: header
         name: Authorization
         type: string
+      - description: Article ID
+        in: path
+        name: articleID
+        required: true
+        type: integer
       - description: Article Version ID
         in: path
         name: articleVersionID
@@ -448,12 +473,17 @@ paths:
       description: Create a new article version with reference from an article ID
         and version ID with the given parameters
       parameters:
-      - description: MUST HAVE PERMISSION CreateArticle. Fill with Bearer token. The
-          token can be accessed via api /auth/login.
+      - description: MUST HAVE PERMISSION CreateArticle. Fill with bearer and token.
+          The token can be accessed via api /auth/login.
         in: header
         name: Authorization
         required: true
         type: string
+      - description: Article ID
+        in: path
+        name: articleID
+        required: true
+        type: integer
       - description: Article Version ID
         in: path
         name: articleVersionID
@@ -492,12 +522,17 @@ paths:
       - application/json
       description: Update the status of an article version with the given parameters
       parameters:
-      - description: MUST HAVE PERMISSION UpdateStatusArticle. Fill with Bearer token.
-          The token can be accessed via api /auth/login.
+      - description: MUST HAVE PERMISSION UpdateStatusArticle. Fill with bearer and
+          token. The token can be accessed via api /auth/login.
         in: header
         name: Authorization
         required: true
         type: string
+      - description: Article ID
+        in: path
+        name: articleID
+        required: true
+        type: integer
       - description: Article Version ID
         in: path
         name: articleVersionID
@@ -595,8 +630,8 @@ paths:
       - application/json
       description: Get the profile of the authenticated user.
       parameters:
-      - description: fill with Bearer token for accessing draft, published, and archived
-          articles. If authorization is not provided default is showing published
+      - description: Fill with bearer and token for accessing draft, published, and
+          archived articles. If authorization is not provided default is showing published
           articles
         in: header
         name: Authorization
@@ -623,11 +658,11 @@ paths:
       - application/json
       description: Retrieve a list of tags with optional sorting.
       parameters:
-      - description: 'fill with Bearer token. The token can be accessed via api /auth/login.
-          If authorization is not provided, the default behavior is showing only published
-          articles. Otherwise if the token is appered and user habe a permission to
-          read drafted and archiver article, the token can be used to accessing draft,
-          published, and archived articles. '
+      - description: 'Fill with bearer and token. The token can be accessed via api
+          /auth/login. If authorization is not provided, the default behavior is showing
+          only published articles. Otherwise if the token is appered and user habe
+          a permission to read drafted and archiver article, the token can be used
+          to accessing draft, published, and archived articles. '
         in: header
         name: Authorization
         type: string
@@ -663,8 +698,8 @@ paths:
       - application/json
       description: Create a new tag with the provided names.
       parameters:
-      - description: MUST HAVE PERMISSION CreateArticle. Fill with Bearer token. The
-          token can be accessed via api /auth/login.
+      - description: MUST HAVE PERMISSION CreateArticle. Fill with bearer and token.
+          The token can be accessed via api /auth/login.
         in: header
         name: Authorization
         required: true
@@ -701,11 +736,11 @@ paths:
       - application/json
       description: Retrieve a specific tag by name.
       parameters:
-      - description: 'fill with Bearer token. The token can be accessed via api /auth/login.
-          If authorization is not provided, the default behavior is showing only published
-          articles. Otherwise if the token is appered and user habe a permission to
-          read drafted and archiver article, the token can be used to accessing draft,
-          published, and archived articles. '
+      - description: 'Fill with bearer and token. The token can be accessed via api
+          /auth/login. If authorization is not provided, the default behavior is showing
+          only published articles. Otherwise if the token is appered and user habe
+          a permission to read drafted and archiver article, the token can be used
+          to accessing draft, published, and archived articles. '
         in: header
         name: Authorization
         type: string
