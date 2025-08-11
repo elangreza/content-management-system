@@ -86,18 +86,18 @@ This is a Content Management System (CMS) built with Go, designed to manage arti
 
   3.3. **Artikel - Dilindungi JWT (kecuali GET untuk artikel published)**
 
-- Pembuatan Artikel Baru. access the [API here](http://localhost:8080/swagger/index.html#/articles/post_articles)
+- Pembuatan Artikel Baru. access the [API here](http://localhost:8080/swagger/index.html#/articles/post_articles). MUST USE account **contentwriter@cms.test** or **editor@cms.test**
 - Pengambilan Daftar Artikel. access the [API here](http://localhost:8080/swagger/index.html#/articles/get_articles)
 - Pengambilan Detail Artikel Terbaru. access the [API here](http://localhost:8080/swagger/index.html#/articles/get_articles__articleID_)
-- Pembuatan Versi Artikel Baru. access the [API here](http://localhost:8080/swagger/index.html#/articles/post_articles__articleID__versions) atau arickel juga bisa dibuat dengan reference `article_id` dan `article_version_id` access the [API here](http://localhost:8080/swagger/index.html#/articles/post_articles__articleID__versions__articleVersionID_)
-- Penghapusan Artikel. access the [API here](http://localhost:8080/swagger/index.html#/articles/delete_articles__articleID_)
-- Perubahan Status Versi Artikel. access the [API here](http://localhost:8080/swagger/index.html#/articles/put_articles__articleID__versions__articleVersionID__status)
+- Pembuatan Versi Artikel Baru. access the [API here](http://localhost:8080/swagger/index.html#/articles/post_articles__articleID__versions) atau arickel juga bisa dibuat dengan reference `article_id` dan `article_version_id` access the [API here](http://localhost:8080/swagger/index.html#/articles/post_articles__articleID__versions__articleVersionID_). MUST USE account **contentwriter@cms.test** or **editor@cms.test**
+- Penghapusan Artikel. access the [API here](http://localhost:8080/swagger/index.html#/articles/delete_articles__articleID_). MUST USE account **editor@cms.test**
+- Perubahan Status Versi Artikel. access the [API here](http://localhost:8080/swagger/index.html#/articles/put_articles__articleID__versions__articleVersionID__status). MUST USE account **editor@cms.test**
 - Pengambilan Daftar Versi Artikel. access the [API here](http://localhost:8080/swagger/index.html#/articles/get_articles__articleID__versions)
 - Pengambilan Detail Versi Artikel Tertentu. access the [API here](http://localhost:8080/swagger/index.html#/articles/post_articles__articleID__versions__articleVersionID_)
 
   3.4. **Tag**
 
-- Pembuatan Tag Baru. access the [API here](http://localhost:8080/swagger/index.html#/Tags/post_tags)
+- Pembuatan Tag Baru. access the [API here](http://localhost:8080/swagger/index.html#/Tags/post_tags) . MUST USE account **contentwriter@cms.test** or **editor@cms.test**
 - Pengambilan Daftar Tag. access the [API here](http://localhost:8080/swagger/index.html#/Tags/get_tags)
 - Pengambilan Detail Tag Tertentu. access the [API here](http://localhost:8080/swagger/index.html#/Tags/get_tags__name_)
 - Logika - Skor Tren Tag (trending_score) is triggered via articles API, and runs every 10 seconds
