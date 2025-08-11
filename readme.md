@@ -37,7 +37,7 @@ This is a Content Management System (CMS) built with Go, designed to manage arti
 
 ### Setup
 
-1. Simply run this command:
+1. Simply run this command, make sure your port 8080 and 5432 is free. The Ports is used to run the server and to see the DB:
 
    ```bash
    make up
