@@ -20,10 +20,14 @@ gen:
 up:
 	cp ./env.example docker.env
 	docker compose --env-file docker.env up -d --build
-	cat ./db/seed/seed_1.sql | docker exec -i cms-database psql -h localhost -U cms -f-
+	cat ./migrations/seed/seed_1.sql | docker exec -i cms-database psql -h localhost -U cms -f-
 
+down:
+	docker compose down
+	
 swag:
 	swag fmt
 	swag init -g cmd/server/main.go
 
-.PHONY: migrate migrate-create run swag gen up
+.PHONY: migrate migrate-create run swag gen up down
+.DEFAULT_GOAL := run

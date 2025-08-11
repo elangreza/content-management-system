@@ -1,6 +1,7 @@
 version: "3.2"
 services:
   database:
+    container_name: cms-database
     image: postgres:alpine
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
@@ -26,7 +27,7 @@ services:
     networks:
       - cms
     volumes:
-      - ./db/migration:/migration
+      - ./migrations:/migration
     depends_on:
       database:
         condition: service_healthy
@@ -45,16 +46,16 @@ services:
     ports:
       - ${HTTP_PORT}:${HTTP_PORT}
     build: .
-    container_name: cmsapp
+    container_name: cms-app
     restart: on-failure:3
     env_file:
       - docker.env
+    environment:
+      - POSTGRES_HOSTNAME=cms-database
     depends_on:
       database:
         condition: service_healthy
         restart: true
-      redis:
-        condition: service_started
 networks:
   cms:
     driver: bridge

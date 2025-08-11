@@ -31,7 +31,7 @@ type (
 //	@Accept			json
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			Authorization	header		string					false	"fill with Bearer token. The token can be accessed via api /auth/login. If authorization is not provided, the default behavior is showing only published articles. Otherwise if the token is appered and user habe a permission to read drafted and archiver article, the token can be used to accessing draft, published, and archived articles. "
+//	@Param			Authorization	header		string					true	"MUST HAVE PERMISSION CreateArticle. Fill with Bearer token. The token can be accessed via api /auth/login."
 //	@Param			body			body		params.CreateTagRequest	true	"Create Tag Request"
 //	@Success		201				{string}	string					"created"
 //	@Failure		400				{object}	errs.ValidationError
