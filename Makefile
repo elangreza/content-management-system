@@ -20,7 +20,6 @@ gen:
 up:
 	cp ./env.example docker.env
 	docker compose --env-file docker.env up -d --build
-	cat ./migrations/seed/seed_1.sql | docker exec -i cms-database psql -h localhost -U cms -f-
 
 down:
 	docker compose down

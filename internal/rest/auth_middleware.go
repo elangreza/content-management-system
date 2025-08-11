@@ -40,6 +40,12 @@ func (am *AuthMiddleware) MustAuthMiddleware() func(next http.Handler) http.Hand
 				return
 			}
 
+			bearer := rawToken[0]
+			if strings.ToLower(bearer) != "bearer" {
+				sendErrorResponse(w, http.StatusBadRequest, errors.New("token not valid. must be bearer + token"))
+				return
+			}
+
 			token := rawToken[1]
 
 			userID, err := am.svc.ProcessToken(r.Context(), token)
