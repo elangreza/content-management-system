@@ -102,3 +102,7 @@ This is a Content Management System (CMS) built with Go, designed to manage arti
 - Pengambilan Detail Tag Tertentu. access the [API here](http://localhost:8080/swagger/index.html#/Tags/get_tags__name_)
 - Logika - Skor Tren Tag (trending_score) is triggered via articles API, and runs every 10 seconds
 - Logika - Skor Hubungan Tag Artikel (article_tag_relationship_score) => triggered via articles API
+
+// TODO add unit test, positive case only. in service using gomock positive case only. in rest using httptest lib
+// TODO optional add ci cd
+// TODO optional integration test

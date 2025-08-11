@@ -235,10 +235,13 @@ func (ar *ArticleRepo) UpdateArticleStatus(ctx context.Context, articleID, artic
 			}
 
 			if prevStatus == constanta.Published {
+				fmt.Println(0)
+
 				// if the previous status is published, set the published_version_id to NULL
-				if _, err := tx.ExecContext(ctx, "UPDATE articles SET published_version_id=NULL WHERE id=$1", articleID); err != nil {
+				if _, err := tx.ExecContext(ctx, updateArticlePublishedIdQuery, nil, updatedBy, articleID); err != nil {
 					return err
 				}
+				fmt.Println(1)
 			}
 
 			if prevStatus == constanta.Draft {
