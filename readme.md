@@ -89,11 +89,11 @@ This is a Content Management System (CMS) built with Go, designed to manage arti
 - Pembuatan Artikel Baru. access the [API here](http://localhost:8080/swagger/index.html#/articles/post_articles)
 - Pengambilan Daftar Artikel. access the [API here](http://localhost:8080/swagger/index.html#/articles/get_articles)
 - Pengambilan Detail Artikel Terbaru. access the [API here](http://localhost:8080/swagger/index.html#/articles/get_articles__articleID_)
-- Pembuatan Versi Artikel Baru. access the [API here](`http://localhost:8080/swagger/index.html#/articles/post_articles__articleID__versions`) atau arickel juga bisa dibuat dengan reference `article_id` dan `article_version_id` access the [API here](`http://localhost:8080/swagger/index.html#/articles/post_articles__articleID__versions__articleVersionID_`)
+- Pembuatan Versi Artikel Baru. access the [API here](http://localhost:8080/swagger/index.html#/articles/post_articles__articleID__versions) atau arickel juga bisa dibuat dengan reference `article_id` dan `article_version_id` access the [API here](http://localhost:8080/swagger/index.html#/articles/post_articles__articleID__versions__articleVersionID_)
 - Penghapusan Artikel. access the [API here](http://localhost:8080/swagger/index.html#/articles/delete_articles__articleID_)
-- Perubahan Status Versi Artikel. access the [API here](`http://localhost:8080/swagger/index.html#/articles/put_articles__articleID__versions__articleVersionID__status`)
-- Pengambilan Daftar Versi Artikel. access the [API here](`http://localhost:8080/swagger/index.html#/articles/get_articles__articleID__versions`)
-- Pengambilan Detail Versi Artikel Tertentu. access the [API here](`http://localhost:8080/swagger/index.html#/articles/post_articles__articleID__versions__articleVersionID_`)
+- Perubahan Status Versi Artikel. access the [API here](http://localhost:8080/swagger/index.html#/articles/put_articles__articleID__versions__articleVersionID__status)
+- Pengambilan Daftar Versi Artikel. access the [API here](http://localhost:8080/swagger/index.html#/articles/get_articles__articleID__versions)
+- Pengambilan Detail Versi Artikel Tertentu. access the [API here](http://localhost:8080/swagger/index.html#/articles/post_articles__articleID__versions__articleVersionID_)
 
   3.4. **Tag**
 
@@ -103,6 +103,8 @@ This is a Content Management System (CMS) built with Go, designed to manage arti
 - Logika - Skor Tren Tag (trending_score) is triggered via articles API, and runs every 10 seconds
 - Logika - Skor Hubungan Tag Artikel (article_tag_relationship_score) => triggered via articles API
 
-// TODO add unit test, positive case only. in service using gomock positive case only. in rest using httptest lib
-// TODO optional add ci cd
-// TODO optional integration test
+4. shutdown the application
+
+```
+make down
+```
