@@ -25,15 +25,6 @@ func NewSafeMap[K comparable, V any]() *SafeMap[K, V] {
 			case "set":
 				m[cmd.Key] = cmd.Value
 				cmd.ReplyCh <- struct{}{}
-			case "delete":
-				delete(m, cmd.Key)
-				cmd.ReplyCh <- struct{}{}
-			case "getAll":
-				copyMap := make(map[K]V, len(m))
-				for k, v := range m {
-					copyMap[k] = v
-				}
-				cmd.ReplyCh <- copyMap
 			}
 		}
 	}()
@@ -56,16 +47,4 @@ func (s *SafeMap[K, V]) Set(key K, value V) {
 	reply := make(chan interface{})
 	s.cmdCh <- MapCommand[K, V]{Op: "set", Key: key, Value: value, ReplyCh: reply}
 	<-reply
-}
-
-func (s *SafeMap[K, V]) Delete(key K) {
-	reply := make(chan interface{})
-	s.cmdCh <- MapCommand[K, V]{Op: "delete", Key: key, ReplyCh: reply}
-	<-reply
-}
-
-func (s *SafeMap[K, V]) GetAll() map[K]V {
-	reply := make(chan interface{})
-	s.cmdCh <- MapCommand[K, V]{Op: "getAll", ReplyCh: reply}
-	return (<-reply).(map[K]V)
 }

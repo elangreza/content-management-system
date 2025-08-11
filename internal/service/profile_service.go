@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"errors"
-	"fmt"
 	"time"
 
 	"github.com/elangreza/content-management-system/internal/constanta"
@@ -37,11 +36,6 @@ func (ps *ProfileService) GetUserProfile(ctx context.Context) (*params.UserProfi
 	if user.UpdatedAt.Valid {
 		updateAt = &user.UpdatedAt.Time
 	}
-
-	fmt.Println(
-		sharevar.ContentWriter.GetValue())
-	fmt.Println(
-		sharevar.Editor.GetValue())
 
 	roleName := "custom role"
 	switch user.Role.GetValue() {

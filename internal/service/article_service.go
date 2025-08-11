@@ -29,7 +29,7 @@ type (
 	}
 
 	tagTrigger interface {
-		CreateTagTrigger(name TagServiceAction, payload any)
+		CreateTagTrigger(name constanta.TagServiceAction, payload any)
 	}
 
 	ArticleService struct {
@@ -59,7 +59,7 @@ func (as *ArticleService) CreateArticle(ctx context.Context, req params.CreateAr
 		return nil, err
 	}
 
-	as.tagTrigger.CreateTagTrigger(calculateArticleTagRelation, entity.CalculateArticleVersionTagRelationShipScorePayload{
+	as.tagTrigger.CreateTagTrigger(constanta.CalculateArticleTagRelation, entity.CalculateArticleVersionTagRelationShipScorePayload{
 		Tags:             articleVersion.Tags,
 		ArticleVersionID: articleVersionID,
 	})
@@ -77,7 +77,7 @@ func (as *ArticleService) DeleteArticle(ctx context.Context, articleID int64) er
 		return err
 	}
 
-	as.tagTrigger.CreateTagTrigger(calculateTagUsageAndPairFrequency, nil)
+	as.tagTrigger.CreateTagTrigger(constanta.CalculateTagUsageAndPairFrequency, nil)
 
 	return nil
 }
@@ -111,14 +111,14 @@ func (as *ArticleService) UpdateStatusArticle(ctx context.Context, articleID, ar
 	}
 
 	if reqStatus == constanta.Published {
-		as.tagTrigger.CreateTagTrigger(calculateArticleTagRelation, entity.CalculateArticleVersionTagRelationShipScorePayload{
+		as.tagTrigger.CreateTagTrigger(constanta.CalculateArticleTagRelation, entity.CalculateArticleVersionTagRelationShipScorePayload{
 			Tags:             articleTags,
 			ArticleVersionID: articleVersionID,
 		})
 	}
 
 	if reqStatus == constanta.Archived {
-		as.tagTrigger.CreateTagTrigger(calculateTagUsageAndPairFrequency, nil)
+		as.tagTrigger.CreateTagTrigger(constanta.CalculateTagUsageAndPairFrequency, nil)
 	}
 
 	return as.articleRepo.UpdateArticleStatus(ctx, articleID, articleVersionID, reqStatus, articleVersion.Status, userID)
@@ -176,7 +176,7 @@ func (as *ArticleService) CreateArticleVersionWithReferenceFromArticleID(ctx con
 		return nil, err
 	}
 
-	as.tagTrigger.CreateTagTrigger(calculateArticleTagRelation, entity.CalculateArticleVersionTagRelationShipScorePayload{
+	as.tagTrigger.CreateTagTrigger(constanta.CalculateArticleTagRelation, entity.CalculateArticleVersionTagRelationShipScorePayload{
 		Tags:             newArticleVersion.Tags,
 		ArticleVersionID: newArticleVersionID,
 	})
@@ -227,7 +227,7 @@ func (as *ArticleService) CreateArticleVersionWithReferenceFromArticleIDAindVers
 		return nil, err
 	}
 
-	as.tagTrigger.CreateTagTrigger(calculateArticleTagRelation, entity.CalculateArticleVersionTagRelationShipScorePayload{
+	as.tagTrigger.CreateTagTrigger(constanta.CalculateArticleTagRelation, entity.CalculateArticleVersionTagRelationShipScorePayload{
 		Tags:             newArticleVersion.Tags,
 		ArticleVersionID: newArticleVersionID,
 	})

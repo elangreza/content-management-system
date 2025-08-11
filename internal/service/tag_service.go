@@ -24,7 +24,7 @@ type (
 	}
 
 	TagActionTrigger struct {
-		Name    TagServiceAction
+		Name    constanta.TagServiceAction
 		Payload interface{}
 	}
 
@@ -35,15 +35,6 @@ type (
 		tagPairFrequency *SafeMap[[2]string, int]
 		actionTrigger    chan TagActionTrigger
 	}
-)
-
-type TagServiceAction int8
-
-const (
-	// trigger when article version is published or archived
-	calculateTagUsageAndPairFrequency TagServiceAction = iota
-	// trigger when article version is drafted or published
-	calculateArticleTagRelation
 )
 
 func NewTagService(articleRepo articleRepo, tagRepo tagRepo) *TagService {
@@ -78,10 +69,10 @@ func (s *TagService) tagRoutine() {
 				return
 			}
 			switch action.Name {
-			case calculateTagUsageAndPairFrequency:
+			case constanta.CalculateTagUsageAndPairFrequency:
 				slog.Info("calculateTagUsageAndPairFrequency")
 				s.calculateTagUsageAndPairFrequency()
-			case calculateArticleTagRelation:
+			case constanta.CalculateArticleTagRelation:
 				slog.Info("calculateArticleTagRelation")
 				s.calculateTagUsageAndPairFrequency()
 				if err := s.updateArticleVersionTagRelationshipScore(action.Payload); err != nil {
@@ -135,12 +126,12 @@ func (s *TagService) CreateTag(ctx context.Context, tagNames ...string) error {
 	}
 
 	// recalculate tag usage and pair frequency
-	s.CreateTagTrigger(calculateTagUsageAndPairFrequency, nil)
+	s.CreateTagTrigger(constanta.CalculateTagUsageAndPairFrequency, nil)
 
 	return nil
 }
 
-func (s *TagService) CreateTagTrigger(name TagServiceAction, payload any) {
+func (s *TagService) CreateTagTrigger(name constanta.TagServiceAction, payload any) {
 	go func() {
 		s.actionTrigger <- TagActionTrigger{
 			Name:    name,
